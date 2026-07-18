@@ -4,7 +4,7 @@
     <!-- Header row: sender + timestamp -->
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-1">
-        <span class="font-medium">
+        <span class="font-medium" dir="auto">
           {{ senderLabel }}
         </span>
         <span class="text-sm text-ink-gray-5" v-if="activity.type === 'Outgoing'">

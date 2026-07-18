@@ -52,7 +52,7 @@
           :placeholder="__('Search templates…')"
           class="w-full"
         />
-        <div v-if="selectedTemplate" class="rounded border border-outline-gray-2 bg-surface-gray-1 px-3 py-2 text-p-sm text-ink-gray-7 mt-1">
+        <div v-if="selectedTemplate" class="rounded border border-outline-gray-2 bg-surface-gray-1 px-3 py-2 text-p-sm text-ink-gray-7 mt-1" dir="auto">
           {{ templatePreview }}
         </div>
         <div class="flex justify-end gap-2">

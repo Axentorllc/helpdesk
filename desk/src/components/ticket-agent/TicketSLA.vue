@@ -17,9 +17,18 @@
         >
           #{{ ticket.doc.name }}
         </p>
+        <!-- Via WhatsApp -->
+        <div
+          v-if="isWhatsApp"
+          class="text-ink-gray-5 flex items-center"
+        >
+          <span class="mr-[4px]">via</span>
+          <WhatsAppIcon class="size-4 inline-block mr-1" />
+          <span>WhatsApp</span>
+        </div>
         <!-- Via Email -->
         <div
-          v-if="!ticket.doc.via_customer_portal"
+          v-else-if="!ticket.doc.via_customer_portal"
           class="text-ink-gray-5 flex items-center"
         >
           <span class="mr-[4px]">via</span>
@@ -80,6 +89,8 @@
 
 <script setup lang="ts">
 import { useShortcut } from "@/composables/shortcuts";
+import { useWhatsAppThread } from "@/composables/useWhatsAppThread";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import { TicketSymbol } from "@/types";
 import {
   copyToClipboard,
@@ -91,6 +102,12 @@ import { Badge, dayjs, Tooltip } from "frappe-ui";
 import { computed, inject } from "vue";
 
 const ticket = inject(TicketSymbol)!;
+
+// WA thread: feature-detected, uses same module-level cache as TicketActivityPanel.
+const waThread = useWhatsAppThread(String(ticket.value?.doc?.name || ""));
+const isWhatsApp = computed(() =>
+  waThread.available.value && waThread.conversation.value !== null
+);
 
 const timeFormat = {
   day: true,

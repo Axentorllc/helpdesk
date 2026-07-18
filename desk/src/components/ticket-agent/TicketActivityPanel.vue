@@ -137,18 +137,6 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
 
 const { tabIndex, changeTabTo } = useActiveTabManager(tabs);
 
-// Set of wamids from the WhatsApp thread — intended for excluding WA audit
-// Communications from the Emails tab. However, get_ticket_activities payload
-// does not expose message_id or communication_medium on Communication rows,
-// so this filter cannot match anything frontend-only (email.message_id is
-// undefined in the payload). The filter is a no-op today; hygiene is blocked
-// until get_communications() exposes message_id or communication_medium.
-// ponytail: tracked as open item in session-log; blocked, not skipped.
-const waMessageIds = computed<Set<string>>(() => {
-  const msgs = waThread.messages.value ?? [];
-  return new Set(msgs.map((m) => m.message_id).filter(Boolean) as string[]);
-});
-
 // TODO: refactor for pagination
 // can be done once we sort out the backend
 // sender mail will be  user using portal
@@ -156,10 +144,19 @@ const _activities = computed(() => {
   if (!activities.value?.data) {
     return [];
   }
-  // Exclude Communications whose message_id matches a WA thread wamid —
-  // those are WhatsApp audit copies, not email communications.
   const emailProps = activities.value?.data?.communications
-    .filter((email: any) => !waMessageIds.value.has(email.message_id))
+    .filter((email: any) => email.communication_medium !== "Chat")
+    .filter((email: any, idx: number) => {
+      // Skip description-dup: first email whose stripped content matches first inbound WA message.
+      if (idx !== 0) return true;
+      if (!waThread.conversation.value) return true;
+      const firstInbound = (waThread.messages.value ?? []).find(
+        (m: any) => m.type === "Incoming"
+      );
+      if (!firstInbound?.message) return true;
+      const emailText = (email.content || "").replace(/<[^>]+>/g, "").trim();
+      return emailText !== firstInbound.message.trim();
+    })
     .map(
     (email: any, idx: number) => {
       return {
