@@ -38,11 +38,18 @@
       </div>
     </div>
 
+    <!-- Pinned side panels (manifest-driven, above the scroll container) -->
+    <div v-if="ticket.doc?.name && pinnedPanels.length" class="border-t divide-y-[1px]">
+      <TicketPanelHost :panels="pinnedPanels" />
+    </div>
+
     <!-- Scrollable sections: Ticket Info + Recent / Similar Tickets -->
     <div
       class="border-t flex-1 min-h-0 overflow-y-auto divide-y-[1px]"
-      v-if="Boolean(customFields.length) || showRecentSimilarTickets"
+      v-if="Boolean(customFields.length) || showRecentSimilarTickets || scrollPanels.length"
     >
+      <!-- Scrolling side panels (manifest-driven, top of the scroll container) -->
+      <TicketPanelHost v-if="ticket.doc?.name" :panels="scrollPanels" />
       <!-- Ticket Info (custom fields) -->
       <div v-if="Boolean(customFields.length)">
         <Section label="Ticket Info" v-model:opened="openedSections.ticketInfo">
@@ -160,8 +167,11 @@ import { computed, inject, ref } from "vue";
 import LucideChevronRight from "~icons/lucide/chevron-right";
 import Section from "../Section.vue";
 import TicketField from "../TicketField.vue";
+import TicketPanelHost from "./TicketPanelHost.vue";
 import AssignTo from "./AssignTo.vue";
 import TicketContact from "./TicketContact.vue";
+import { useChannelsStore } from "@/stores/channels";
+import { storeToRefs } from "pinia";
 
 const ticket = inject(TicketSymbol)!;
 const assignees = inject(AssigneeSymbol)!;
@@ -173,6 +183,11 @@ const { notifyTicketUpdate } = useNotifyTicketUpdate(ticket.value?.name);
 
 const dateFormat = window.date_format;
 const { getStatus, colorMap } = useTicketStatusStore();
+
+// Manifest-driven side panels (contributed via the helpdesk_ticket_panels hook).
+const { panels } = storeToRefs(useChannelsStore());
+const pinnedPanels = computed(() => panels.value.filter((p) => p.pinned));
+const scrollPanels = computed(() => panels.value.filter((p) => !p.pinned));
 
 // ticket_type, priority, customer, agent_group
 const coreFields = computed(() => {
