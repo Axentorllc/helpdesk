@@ -122,6 +122,7 @@ onUnmounted(() => clearInterval(_timer));
 // ── Template picker ───────────────────────────────────────────────────────────
 const templatesResource = createResource({
   url: "axe_helpdesk_wa.api.list_templates",
+  method: "GET",
   auto: true,
 });
 

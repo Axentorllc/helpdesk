@@ -50,6 +50,7 @@ function _makeThread(ticketId: string) {
   const resource = createResource({
     url: "axe_helpdesk_wa.api.get_thread",
     params: { ticket: ticketId },
+    method: "GET",
     auto: true,
     onSuccess(data: WaThread) {
       if (!data.available) {
