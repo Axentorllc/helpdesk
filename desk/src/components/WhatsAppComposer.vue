@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { __ } from "@/translation";
 import { Autocomplete } from "@/components";
-import { Badge, Button, createResource, toast } from "frappe-ui";
+import { Badge, Button, createResource, dayjsLocal, toast } from "frappe-ui";
 import { computed, onUnmounted, ref, watch } from "vue";
 import type { WaConversation } from "@/composables/useWhatsAppThread";
 
@@ -100,19 +100,18 @@ function updateCountdown() {
     windowCountdown.value = __("Window open");
     return;
   }
-  const diff = new Date(props.conversation.window_expires_at).getTime() - Date.now();
+  // Parse the naive server datetime string in site timezone (same as dayjsLocal in utils.ts).
+  const diff = dayjsLocal(props.conversation.window_expires_at).diff(dayjsLocal(), "minute");
   if (diff <= 0) {
     windowCountdown.value = __("Window closing…");
     return;
   }
-  const totalMinutes = Math.floor(diff / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours > 0) {
-    windowCountdown.value = __("Window closes in {0}h {1}m", [hours, minutes]);
-  } else {
-    windowCountdown.value = __("Window closes in {0}m", [minutes]);
-  }
+  const hours = Math.floor(diff / 60);
+  const minutes = diff % 60;
+  // Template literal: __ spread-args only accept individual values, not arrays.
+  windowCountdown.value = hours > 0
+    ? `${__("Window closes in")} ${hours}h ${minutes}m`
+    : `${__("Window closes in")} ${minutes}m`;
 }
 
 updateCountdown();

@@ -123,8 +123,9 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
       icon: PhoneIcon,
     });
   }
-  // WhatsApp tab: only when thread is available (feature-detected).
-  if (waThread.available.value) {
+  // WhatsApp tab: only when available AND a conversation exists for this ticket.
+  // available=true + conversation=null means glue app installed but no WA thread on this ticket.
+  if (waThread.available.value && waThread.conversation.value !== null) {
     _tabs.push({
       name: "whatsapp" as TicketTab,
       label: "WhatsApp",
@@ -233,8 +234,8 @@ const _activities = computed(() => {
     };
   });
 
-  // WhatsApp messages merged into the unified feed.
-  const waProps = (waThread.messages.value ?? []).map((m) => ({
+  // WhatsApp messages merged into the unified feed — only when a conversation exists.
+  const waProps = (waThread.conversation.value !== null ? waThread.messages.value ?? [] : []).map((m) => ({
     type: "whatsapp",
     key: `wa-${m.name}`,
     creation: m.creation,

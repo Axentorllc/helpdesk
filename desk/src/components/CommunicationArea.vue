@@ -189,7 +189,12 @@ const props = defineProps({
   },
 });
 
-const waAvailable = computed(() => props.waThread?.available?.value ?? false);
+// Gate on conversation !== null: available=true but conversation=null means
+// glue app installed but this ticket has no WA thread — render 100% stock.
+const waAvailable = computed(() =>
+  (props.waThread?.available?.value ?? false) &&
+  (props.waThread?.conversation?.value ?? null) !== null
+);
 const waConversation = computed(() => props.waThread?.conversation?.value ?? null);
 
 function toggleEmailBox() {
