@@ -185,9 +185,18 @@ const dateFormat = window.date_format;
 const { getStatus, colorMap } = useTicketStatusStore();
 
 // Manifest-driven side panels (contributed via the helpdesk_ticket_panels hook).
+// Filter by condition_field here (not just in the host) so the wrapper v-ifs below
+// gate on panels that will ACTUALLY render — otherwise a conditional panel whose
+// condition is unmet leaves an empty bordered region.
 const { panels } = storeToRefs(useChannelsStore());
-const pinnedPanels = computed(() => panels.value.filter((p) => p.pinned));
-const scrollPanels = computed(() => panels.value.filter((p) => !p.pinned));
+const panelVisible = (p: any) =>
+  !p.condition_field || Boolean(ticket.value?.doc?.[p.condition_field]);
+const pinnedPanels = computed(() =>
+  panels.value.filter((p) => p.pinned && panelVisible(p))
+);
+const scrollPanels = computed(() =>
+  panels.value.filter((p) => !p.pinned && panelVisible(p))
+);
 
 // ticket_type, priority, customer, agent_group
 const coreFields = computed(() => {
