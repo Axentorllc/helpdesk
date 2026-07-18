@@ -108,10 +108,12 @@ const ticket = inject(TicketSymbol)!;
 // Feature-detected; uses the same module-level thread cache as TicketActivityPanel.
 const channelsStore = useChannelsStore();
 const { channels } = storeToRefs(channelsStore);
-const ticketId = String(ticket.value?.doc?.name || "");
+// Reactive (see TicketActivityPanel): the instance is reused across ticket switches,
+// so a plain-string capture would show the previous ticket's "via" channel.
+const ticketId = computed(() => String(ticket.value?.doc?.name || ""));
 const viaChannel = computed(() => {
   for (const ch of channels.value) {
-    const thread = useChannelThread(ch.channel_key, ticketId);
+    const thread = useChannelThread(ch.channel_key, ticketId.value);
     if (thread.available.value && thread.conversation.value !== null) {
       return ch;
     }

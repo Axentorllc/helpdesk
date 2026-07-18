@@ -94,11 +94,15 @@ const { channels } = storeToRefs(channelsStore);
 // mounts when ticket.doc.name is set (parent v-if in TicketAgent.vue), so the id is
 // stable at setup. useChannelThread is memoized per (channel, ticket); the threads'
 // internal refs drive reactivity.
-const ticketId = String(ticket.value?.doc?.name || "");
+// Reactive: the SPA reuses this component instance across ticket switches (no :key on
+// <TicketActivityPanel> and useTicket is memoized), so a plain-string capture would
+// stay pointed at the previous ticket and cross-wire the thread/composer to the wrong
+// conversation. Computed → channelThreads re-keys the memoized threads on switch.
+const ticketId = computed(() => String(ticket.value?.doc?.name || ""));
 const channelThreads = computed(() =>
   channels.value.map((ch) => ({
     ...ch,
-    thread: useChannelThread(ch.channel_key, ticketId),
+    thread: useChannelThread(ch.channel_key, ticketId.value),
   }))
 );
 
