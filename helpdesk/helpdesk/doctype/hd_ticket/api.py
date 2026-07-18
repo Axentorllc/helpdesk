@@ -188,6 +188,7 @@ def get_communications(ticket: str):
             QBCommunication.recipients,
             QBCommunication.subject,
             QBCommunication.delivery_status,
+            QBCommunication.communication_medium,
             QBCommunication.sent_or_received,
             QBCommunication.user,
         )
