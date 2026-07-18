@@ -20,7 +20,7 @@
             class="relative flex justify-center after:absolute after:left-[50%] after:top-3 after:-z-10 after:border-l after:border-outline-gray-modals"
             :class="[
               i != activities.length - 1 && 'after:h-full',
-              !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
+              !['email', 'feedback', 'call', 'comment', 'channel'].includes(
                 activity.type
               ) && 'after:top-6',
             ]"
@@ -28,19 +28,19 @@
             <div
               class="z-1 flex items-center justify-center rounded-full bg-surface-white"
               :class="[
-                ['email', 'feedback', 'whatsapp'].includes(activity.type)
+                ['email', 'feedback', 'channel'].includes(activity.type)
                   ? 'my-1 h-9 w-9'
                   : 'h-6 w-6',
-                !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
+                !['email', 'feedback', 'call', 'comment', 'channel'].includes(
                   activity.type
                 ) && 'mt-[2px]',
               ]"
             >
               <Avatar
-                v-if="activity.type === 'email' || activity.type === 'feedback' || activity.type === 'whatsapp'"
+                v-if="activity.type === 'email' || activity.type === 'feedback' || activity.type === 'channel'"
                 size="lg"
-                :label="activity.type === 'whatsapp' ? (activity.waMessage?.profile_name || activity.waMessage?.wa_id || 'WA') : activity.sender?.full_name"
-                :image="activity.type === 'whatsapp' ? undefined : getUser(activity.sender?.name).user_image"
+                :label="activity.type === 'channel' ? (activity.channelMessage?.profile_name || activity.channelMessage?.source_id || activity.channel) : activity.sender?.full_name"
+                :image="activity.type === 'channel' ? undefined : getUser(activity.sender?.name).user_image"
                 class="bg-surface-white absolute left-[0.7px]"
               />
               <CommentIcon
@@ -66,7 +66,7 @@
             class="mb-4 flex flex-1"
             :class="[
               i == activities.length - 1 && 'mb-5',
-              !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
+              !['email', 'feedback', 'call', 'comment', 'channel'].includes(
                 activity.type
               ) && 'mt-[2px]',
             ]"
@@ -93,9 +93,10 @@
               :activity="activity"
               v-else-if="activity.type === 'feedback'"
             />
-            <WhatsAppArea
-              v-else-if="activity.type === 'whatsapp'"
-              :activity="activity.waMessage"
+            <ChannelThreadArea
+              v-else-if="activity.type === 'channel'"
+              :activity="activity.channelMessage"
+              :capabilities="activity.capabilities"
               class="py-2 px-3"
             />
             <HistoryBox v-else :activity="activity" />
@@ -134,7 +135,7 @@ import FeedbackBox from "../ticket-agent/FeedbackBox.vue";
 import CommentBox from "@/components/CommentBox.vue";
 import EmailArea from "@/components/EmailArea.vue";
 import HistoryBox from "@/components/HistoryBox.vue";
-import WhatsAppArea from "@/components/WhatsAppArea.vue";
+import ChannelThreadArea from "@/components/ChannelThreadArea.vue";
 
 const props = defineProps({
   activities: {

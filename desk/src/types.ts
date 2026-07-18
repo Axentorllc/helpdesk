@@ -384,7 +384,8 @@ export type EmailAccountFormState = {
 export type TicketTab = "activity" | "email" | "comment" | "details" | "call";
 
 export interface TabObject {
-  name: TicketTab;
+  // Channel tabs use their channel_key (a dynamic string) as the tab name.
+  name: TicketTab | string;
   label: string;
   icon: Component;
   condition?: () => boolean;

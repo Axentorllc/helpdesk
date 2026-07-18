@@ -17,14 +17,14 @@
         >
           #{{ ticket.doc.name }}
         </p>
-        <!-- Via WhatsApp -->
+        <!-- Via channel (WhatsApp, etc.) -->
         <div
-          v-if="isWhatsApp"
+          v-if="viaChannel"
           class="text-ink-gray-5 flex items-center"
         >
           <span class="mr-[4px]">via</span>
-          <WhatsAppIcon class="size-4 inline-block mr-1" />
-          <span>WhatsApp</span>
+          <component :is="channelIcon(viaChannel.icon)" class="size-4 inline-block mr-1" />
+          <span>{{ viaChannel.label }}</span>
         </div>
         <!-- Via Email -->
         <div
@@ -89,8 +89,9 @@
 
 <script setup lang="ts">
 import { useShortcut } from "@/composables/shortcuts";
-import { useWhatsAppThread } from "@/composables/useWhatsAppThread";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
+import { useChannelThread } from "@/composables/useChannelThread";
+import { useChannelsStore, channelIcon } from "@/stores/channels";
+import { storeToRefs } from "pinia";
 import { TicketSymbol } from "@/types";
 import {
   copyToClipboard,
@@ -103,11 +104,20 @@ import { computed, inject } from "vue";
 
 const ticket = inject(TicketSymbol)!;
 
-// WA thread: feature-detected, uses same module-level cache as TicketActivityPanel.
-const waThread = useWhatsAppThread(String(ticket.value?.doc?.name || ""));
-const isWhatsApp = computed(() =>
-  waThread.available.value && waThread.conversation.value !== null
-);
+// First channel with a conversation on this ticket drives the "via" label.
+// Feature-detected; uses the same module-level thread cache as TicketActivityPanel.
+const channelsStore = useChannelsStore();
+const { channels } = storeToRefs(channelsStore);
+const ticketId = String(ticket.value?.doc?.name || "");
+const viaChannel = computed(() => {
+  for (const ch of channels.value) {
+    const thread = useChannelThread(ch.channel_key, ticketId);
+    if (thread.available.value && thread.conversation.value !== null) {
+      return ch;
+    }
+  }
+  return null;
+});
 
 const timeFormat = {
   day: true,

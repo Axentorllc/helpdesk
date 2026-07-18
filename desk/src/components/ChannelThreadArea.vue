@@ -12,9 +12,9 @@
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <!-- Delivery status badge for outgoing messages -->
+        <!-- Delivery status badge for outgoing messages (delivery_status capability) -->
         <Badge
-          v-if="activity.type === 'Outgoing' && statusBadge.label"
+          v-if="capabilities.delivery_status && activity.type === 'Outgoing' && statusBadge.label"
           :label="statusBadge.label"
           variant="subtle"
           :theme="statusBadge.color"
@@ -71,11 +71,17 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Channel capability flags from the extensions manifest; gate channel-specific UI
+  // (delivery_status badges here). Default to permissive so a bare mount still renders.
+  capabilities: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const senderLabel = computed(() => {
   if (props.activity.type === "Incoming") {
-    return props.activity.profile_name || props.activity.wa_id || __("Customer");
+    return props.activity.profile_name || props.activity.source_id || __("Customer");
   }
   return props.activity.sender?.full_name || __("Agent");
 });

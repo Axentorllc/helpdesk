@@ -9,7 +9,7 @@
       <TicketAgentActivities
         v-if="Boolean(activities.data)"
         ref="ticketAgentActivitiesRef"
-        :activities="filterActivities(tab.name as TicketTab)"
+        :activities="filterActivities(tab.name)"
         :title="tab.label"
         :ticket-status="ticket.doc.status"
         @email:reply="
@@ -24,10 +24,6 @@
           }
         "
       />
-      <!-- <div v-else class="flex items-center justify-center flex-col flex-1">
-        <Button :loading="true" variant="ghost" size="2xl" />
-        <p class="text-xl font-medium text-ink-gray-5">Loading...</p>
-      </div> -->
     </template>
   </Tabs>
   <!-- Comm Area -->
@@ -38,16 +34,16 @@
     :cc-emails="[]"
     :bcc-emails="[]"
     :key="ticket.doc?.name"
-    :wa-thread="waThread"
+    :channel-threads="channelThreads"
     @update="
       () => {
         activities.reload();
         ticketAgentActivitiesRef?.scrollToLatestActivity();
       }
     "
-    @wa-sent="
-      () => {
-        waThread.resource.reload();
+    @channel-sent="
+      (channel) => {
+        reloadChannelThread(channel, ticketId);
         activities.reload();
         ticketAgentActivitiesRef?.scrollToLatestActivity();
       }
@@ -63,9 +59,9 @@ import {
   EmailIcon,
   PhoneIcon,
 } from "@/components/icons";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import { useActiveTabManager } from "@/composables/useActiveTabManager";
-import { useWhatsAppThread } from "@/composables/useWhatsAppThread";
+import { useChannelThread, reloadChannelThread } from "@/composables/useChannelThread";
+import { useChannelsStore, channelIcon } from "@/stores/channels";
 import { useTelephonyStore } from "@/stores/telephony";
 import {
   ActivitiesSymbol,
@@ -74,7 +70,7 @@ import {
   TicketSymbol,
   TicketTab,
 } from "@/types";
-import { Button, Tabs } from "frappe-ui";
+import { Tabs } from "frappe-ui";
 import { storeToRefs } from "pinia";
 import { computed, ComputedRef, inject, ref } from "vue";
 import { TicketAgentActivities } from "../ticket";
@@ -91,11 +87,20 @@ const communicationAreaRef = ref<InstanceType<typeof CommunicationArea> | null>(
 const telephonyStore = useTelephonyStore();
 const { isCallingEnabled } = storeToRefs(telephonyStore);
 
-// WhatsApp thread — feature-detected; available=false = no UI changes.
-// Direct call (not computed): TicketActivityPanel only mounts when ticket.doc.name
-// is set (parent v-if guard in TicketAgent.vue), so the ID is stable at setup time.
-// The thread resource's internal refs drive reactivity; no computed wrapper needed.
-const waThread = useWhatsAppThread(String(ticket.value?.doc?.name || ""));
+const channelsStore = useChannelsStore();
+const { channels } = storeToRefs(channelsStore);
+
+// Channel threads — one feature-detected thread per manifest channel. The panel only
+// mounts when ticket.doc.name is set (parent v-if in TicketAgent.vue), so the id is
+// stable at setup. useChannelThread is memoized per (channel, ticket); the threads'
+// internal refs drive reactivity.
+const ticketId = String(ticket.value?.doc?.name || "");
+const channelThreads = computed(() =>
+  channels.value.map((ch) => ({
+    ...ch,
+    thread: useChannelThread(ch.channel_key, ticketId),
+  }))
+);
 
 const tabs: ComputedRef<TabObject[]> = computed(() => {
   const _tabs: TabObject[] = [
@@ -123,19 +128,32 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
       icon: PhoneIcon,
     });
   }
-  // WhatsApp tab: only when available AND a conversation exists for this ticket.
-  // available=true + conversation=null means glue app installed but no WA thread on this ticket.
-  if (waThread.available.value && waThread.conversation.value !== null) {
-    _tabs.push({
-      name: "whatsapp" as TicketTab,
-      label: "WhatsApp",
-      icon: WhatsAppIcon,
-    });
-  }
+  // One tab per channel that is available AND has a conversation on this ticket.
+  // available=true + conversation=null means the plugin is installed but there is no
+  // thread on this ticket. Tab name = channel_key (preserves saved-tab prefs).
+  channelThreads.value.forEach((ch) => {
+    if (ch.thread.available.value && ch.thread.conversation.value !== null) {
+      _tabs.push({
+        name: ch.channel_key,
+        label: ch.label,
+        icon: channelIcon(ch.icon),
+      });
+    }
+  });
   return _tabs;
 });
 
 const { tabIndex, changeTabTo } = useActiveTabManager(tabs);
+
+// First inbound message across any channel thread — used to dedup the ticket
+// description email against the opening channel message.
+const firstChannelInbound = computed(() =>
+  channelThreads.value
+    .flatMap((ch) =>
+      ch.thread.conversation.value !== null ? ch.thread.messages.value ?? [] : []
+    )
+    .find((m: any) => m.type === "Incoming")
+);
 
 // TODO: refactor for pagination
 // can be done once we sort out the backend
@@ -147,12 +165,9 @@ const _activities = computed(() => {
   const emailProps = activities.value?.data?.communications
     .filter((email: any) => email.communication_medium !== "Chat")
     .filter((email: any, idx: number) => {
-      // Skip description-dup: first email whose stripped content matches first inbound WA message.
+      // Skip description-dup: first email whose stripped content matches first inbound channel message.
       if (idx !== 0) return true;
-      if (!waThread.conversation.value) return true;
-      const firstInbound = (waThread.messages.value ?? []).find(
-        (m: any) => m.type === "Incoming"
-      );
+      const firstInbound = firstChannelInbound.value;
       if (!firstInbound?.message) return true;
       const emailText = (email.content || "").replace(/<[^>]+>/g, "").trim();
       return emailText !== firstInbound.message.trim();
@@ -231,22 +246,28 @@ const _activities = computed(() => {
     };
   });
 
-  // WhatsApp messages merged into the unified feed — only when a conversation exists.
-  const waProps = (waThread.conversation.value !== null ? waThread.messages.value ?? [] : []).map((m) => ({
-    type: "whatsapp",
-    key: `wa-${m.name}`,
-    creation: m.creation,
-    content: m.message || "",  // string content so history-grouping loop stays safe
-    // WhatsApp-specific fields passed through to WhatsAppArea.
-    waMessage: m,
-  }));
+  // Channel messages merged into the unified feed — one flat list across all channels,
+  // only for channels that have a conversation on this ticket.
+  const channelProps = channelThreads.value.flatMap((ch) =>
+    (ch.thread.conversation.value !== null ? ch.thread.messages.value ?? [] : []).map(
+      (m: any) => ({
+        type: "channel",
+        channel: ch.channel_key,
+        key: `${ch.channel_key}-${m.name}`,
+        creation: m.creation,
+        content: m.message || "", // string content so history-grouping loop stays safe
+        channelMessage: m,
+        capabilities: ch.capabilities,
+      })
+    )
+  );
 
   const sorted = [
     ...emailProps,
     ...commentProps,
     ...historyProps,
     ...callProps,
-    ...waProps,
+    ...channelProps,
   ].sort((a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime());
   const data: any[] = [];
   let i = 0;
@@ -307,8 +328,11 @@ function filterActivities(eventType: TicketTab | string) {
   if (eventType === "activity") {
     return _activities.value;
   }
-  if (eventType === "whatsapp") {
-    return _activities.value.filter((a: any) => a.type === "whatsapp");
+  // Channel tabs: tab name === channel_key.
+  if (channels.value.some((c) => c.channel_key === eventType)) {
+    return _activities.value.filter(
+      (a: any) => a.type === "channel" && a.channel === eventType
+    );
   }
   return _activities.value.filter((activity: any) => activity.type === eventType);
 }

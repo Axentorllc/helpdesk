@@ -29,18 +29,19 @@
             <CommentIcon class="h-4" />
           </template>
         </Button>
-        <!-- WhatsApp toggle: visible only when thread is available (feature-detected) -->
+        <!-- Channel toggles: one per available channel thread (feature-detected) -->
         <Button
-          v-if="waAvailable"
+          v-for="c in channelComposers"
+          :key="c.channel_key"
           variant="ghost"
-          label="WhatsApp"
+          :label="c.label"
           :class="[
-            showWhatsAppBox ? '!bg-surface-gray-4 hover:!bg-surface-gray-3' : '',
+            activeComposerChannel === c.channel_key ? '!bg-surface-gray-4 hover:!bg-surface-gray-3' : '',
           ]"
-          @click="toggleWhatsAppBox()"
+          @click="toggleChannelBox(c.channel_key)"
         >
           <template #prefix>
-            <WhatsAppIcon class="h-4" />
+            <component :is="channelIcon(c.icon)" class="h-4" />
           </template>
         </Button>
         <TypingIndicator :ticketId="ticketId" />
@@ -117,18 +118,20 @@
         </div>
       </div>
     </Transition>
-    <!-- WhatsApp composer: only when thread available -->
-    <Transition name="slide">
-      <div v-show="showWhatsAppBox && waAvailable && waConversation">
-        <WhatsAppComposer
-          v-if="waConversation"
-          :conversation="waConversation"
+    <!-- Channel composers: one per available channel, shown when its toggle is active -->
+    <Transition name="slide" v-for="c in channelComposers" :key="c.channel_key">
+      <div v-show="activeComposerChannel === c.channel_key">
+        <ChannelComposer
+          :conversation="c.conversation"
           :ticket-id="ticketId"
-          @discard="showWhatsAppBox = false"
+          :channel="c.channel_key"
+          :label="c.label"
+          :capabilities="c.capabilities"
+          @discard="activeComposerChannel = null"
           @sent="
             () => {
-              showWhatsAppBox = false;
-              emit('wa-sent');
+              activeComposerChannel = null;
+              emit('channel-sent', c.channel_key);
             }
           "
         />
@@ -140,8 +143,8 @@
 <script setup lang="ts">
 import { CommentTextEditor, EmailEditor, TypingIndicator } from "@/components";
 import { CommentIcon, EmailIcon } from "@/components/icons/";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
-import WhatsAppComposer from "@/components/WhatsAppComposer.vue";
+import ChannelComposer from "@/components/ChannelComposer.vue";
+import { channelIcon } from "@/stores/channels";
 import { useDevice } from "@/composables";
 import { useScreenSize } from "@/composables/screen";
 import { useShortcut } from "@/composables/shortcuts";
@@ -149,7 +152,7 @@ import { showCommentBox, showEmailBox } from "@/pages/ticket/modalStates";
 import { onClickOutside } from "@vueuse/core";
 import { computed, ref } from "vue";
 
-const emit = defineEmits(["update", "wa-sent"]);
+const emit = defineEmits(["update", "channel-sent"]);
 const content = defineModel("content");
 const { isMac } = useDevice();
 const { isMobileView } = useScreenSize();
@@ -159,7 +162,8 @@ const emailEditorRef = ref(null);
 const commentTextEditorRef = ref(null);
 const emailBoxRef = ref(null);
 const commentBoxRef = ref(null);
-const showWhatsAppBox = ref(false);
+// Which channel's composer is open (mutually exclusive with email/comment boxes).
+const activeComposerChannel = ref<string | null>(null);
 
 const props = defineProps({
   doctype: {
@@ -182,28 +186,35 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  // WhatsApp thread passed from TicketActivityPanel (feature-detected).
-  waThread: {
-    type: Object,
-    default: null,
+  // Channel threads passed from TicketActivityPanel (feature-detected), one per
+  // manifest channel: { channel_key, label, icon, capabilities, thread }.
+  channelThreads: {
+    type: Array,
+    default: () => [],
   },
 });
 
-// Gate on conversation !== null: available=true but conversation=null means
-// glue app installed but this ticket has no WA thread — render 100% stock.
-const waAvailable = computed(() =>
-  (props.waThread?.available?.value ?? false) &&
-  (props.waThread?.conversation?.value ?? null) !== null
+// Only channels that are available AND have a conversation on this ticket get a
+// toggle + composer; conversation is unwrapped here so the template stays clean.
+const channelComposers = computed(() =>
+  (props.channelThreads ?? [])
+    .filter(
+      (ch: any) => ch.thread?.available?.value && ch.thread?.conversation?.value != null
+    )
+    .map((ch: any) => ({
+      channel_key: ch.channel_key,
+      label: ch.label,
+      icon: ch.icon,
+      capabilities: ch.capabilities,
+      conversation: ch.thread.conversation.value,
+    }))
 );
-const waConversation = computed(() => props.waThread?.conversation?.value ?? null);
 
 function toggleEmailBox() {
   if (showCommentBox.value) {
     showCommentBox.value = false;
   }
-  if (showWhatsAppBox.value) {
-    showWhatsAppBox.value = false;
-  }
+  activeComposerChannel.value = null;
   showEmailBox.value = !showEmailBox.value;
 }
 
@@ -211,20 +222,19 @@ function toggleCommentBox() {
   if (showEmailBox.value) {
     showEmailBox.value = false;
   }
-  if (showWhatsAppBox.value) {
-    showWhatsAppBox.value = false;
-  }
+  activeComposerChannel.value = null;
   showCommentBox.value = !showCommentBox.value;
 }
 
-function toggleWhatsAppBox() {
+function toggleChannelBox(channelKey: string) {
   if (showEmailBox.value) {
     showEmailBox.value = false;
   }
   if (showCommentBox.value) {
     showCommentBox.value = false;
   }
-  showWhatsAppBox.value = !showWhatsAppBox.value;
+  activeComposerChannel.value =
+    activeComposerChannel.value === channelKey ? null : channelKey;
 }
 
 function submitEmail() {
