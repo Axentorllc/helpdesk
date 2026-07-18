@@ -20,7 +20,7 @@
             class="relative flex justify-center after:absolute after:left-[50%] after:top-3 after:-z-10 after:border-l after:border-outline-gray-modals"
             :class="[
               i != activities.length - 1 && 'after:h-full',
-              !['email', 'feedback', 'call', 'comment'].includes(
+              !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
                 activity.type
               ) && 'after:top-6',
             ]"
@@ -28,19 +28,19 @@
             <div
               class="z-1 flex items-center justify-center rounded-full bg-surface-white"
               :class="[
-                ['email', 'feedback'].includes(activity.type)
+                ['email', 'feedback', 'whatsapp'].includes(activity.type)
                   ? 'my-1 h-9 w-9'
                   : 'h-6 w-6',
-                !['email', 'feedback', 'call', 'comment'].includes(
+                !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
                   activity.type
                 ) && 'mt-[2px]',
               ]"
             >
               <Avatar
-                v-if="activity.type === 'email' || activity.type === 'feedback'"
+                v-if="activity.type === 'email' || activity.type === 'feedback' || activity.type === 'whatsapp'"
                 size="lg"
-                :label="activity.sender?.full_name"
-                :image="getUser(activity.sender?.name).user_image"
+                :label="activity.type === 'whatsapp' ? (activity.waMessage?.profile_name || activity.waMessage?.wa_id || 'WA') : activity.sender?.full_name"
+                :image="activity.type === 'whatsapp' ? undefined : getUser(activity.sender?.name).user_image"
                 class="bg-surface-white absolute left-[0.7px]"
               />
               <CommentIcon
@@ -66,7 +66,7 @@
             class="mb-4 flex flex-1"
             :class="[
               i == activities.length - 1 && 'mb-5',
-              !['email', 'feedback', 'call', 'comment'].includes(
+              !['email', 'feedback', 'call', 'comment', 'whatsapp'].includes(
                 activity.type
               ) && 'mt-[2px]',
             ]"
@@ -92,6 +92,11 @@
             <FeedbackBox
               :activity="activity"
               v-else-if="activity.type === 'feedback'"
+            />
+            <WhatsAppArea
+              v-else-if="activity.type === 'whatsapp'"
+              :activity="activity.waMessage"
+              class="py-2 px-3"
             />
             <HistoryBox v-else :activity="activity" />
           </div>
@@ -129,6 +134,7 @@ import FeedbackBox from "../ticket-agent/FeedbackBox.vue";
 import CommentBox from "@/components/CommentBox.vue";
 import EmailArea from "@/components/EmailArea.vue";
 import HistoryBox from "@/components/HistoryBox.vue";
+import WhatsAppArea from "@/components/WhatsAppArea.vue";
 
 const props = defineProps({
   activities: {

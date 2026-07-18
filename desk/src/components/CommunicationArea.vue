@@ -29,6 +29,20 @@
             <CommentIcon class="h-4" />
           </template>
         </Button>
+        <!-- WhatsApp toggle: visible only when thread is available (feature-detected) -->
+        <Button
+          v-if="waAvailable"
+          variant="ghost"
+          label="WhatsApp"
+          :class="[
+            showWhatsAppBox ? '!bg-surface-gray-4 hover:!bg-surface-gray-3' : '',
+          ]"
+          @click="toggleWhatsAppBox()"
+        >
+          <template #prefix>
+            <WhatsAppIcon class="h-4" />
+          </template>
+        </Button>
         <TypingIndicator :ticketId="ticketId" />
       </div>
     </div>
@@ -103,20 +117,39 @@
         </div>
       </div>
     </Transition>
+    <!-- WhatsApp composer: only when thread available -->
+    <Transition name="slide">
+      <div v-show="showWhatsAppBox && waAvailable && waConversation">
+        <WhatsAppComposer
+          v-if="waConversation"
+          :conversation="waConversation"
+          :ticket-id="ticketId"
+          @discard="showWhatsAppBox = false"
+          @sent="
+            () => {
+              showWhatsAppBox = false;
+              emit('wa-sent');
+            }
+          "
+        />
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { CommentTextEditor, EmailEditor, TypingIndicator } from "@/components";
 import { CommentIcon, EmailIcon } from "@/components/icons/";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
+import WhatsAppComposer from "@/components/WhatsAppComposer.vue";
 import { useDevice } from "@/composables";
 import { useScreenSize } from "@/composables/screen";
 import { useShortcut } from "@/composables/shortcuts";
 import { showCommentBox, showEmailBox } from "@/pages/ticket/modalStates";
 import { onClickOutside } from "@vueuse/core";
-import { ref, watch } from "vue";
+import { computed, ref } from "vue";
 
-const emit = defineEmits(["update"]);
+const emit = defineEmits(["update", "wa-sent"]);
 const content = defineModel("content");
 const { isMac } = useDevice();
 const { isMobileView } = useScreenSize();
@@ -126,10 +159,45 @@ const emailEditorRef = ref(null);
 const commentTextEditorRef = ref(null);
 const emailBoxRef = ref(null);
 const commentBoxRef = ref(null);
+const showWhatsAppBox = ref(false);
+
+const props = defineProps({
+  doctype: {
+    type: String,
+    default: "HD Ticket",
+  },
+  ticketId: {
+    type: String,
+    default: null,
+  },
+  toEmails: {
+    type: Array,
+    default: () => [],
+  },
+  ccEmails: {
+    type: Array,
+    default: () => [],
+  },
+  bccEmails: {
+    type: Array,
+    default: () => [],
+  },
+  // WhatsApp thread passed from TicketActivityPanel (feature-detected).
+  waThread: {
+    type: Object,
+    default: null,
+  },
+});
+
+const waAvailable = computed(() => props.waThread?.available?.value ?? false);
+const waConversation = computed(() => props.waThread?.conversation?.value ?? null);
 
 function toggleEmailBox() {
   if (showCommentBox.value) {
     showCommentBox.value = false;
+  }
+  if (showWhatsAppBox.value) {
+    showWhatsAppBox.value = false;
   }
   showEmailBox.value = !showEmailBox.value;
 }
@@ -138,7 +206,20 @@ function toggleCommentBox() {
   if (showEmailBox.value) {
     showEmailBox.value = false;
   }
+  if (showWhatsAppBox.value) {
+    showWhatsAppBox.value = false;
+  }
   showCommentBox.value = !showCommentBox.value;
+}
+
+function toggleWhatsAppBox() {
+  if (showEmailBox.value) {
+    showEmailBox.value = false;
+  }
+  if (showCommentBox.value) {
+    showCommentBox.value = false;
+  }
+  showWhatsAppBox.value = !showWhatsAppBox.value;
 }
 
 function submitEmail() {
@@ -171,28 +252,7 @@ function replyToEmail(data: object) {
   );
 }
 
-const props = defineProps({
-  doctype: {
-    type: String,
-    default: "HD Ticket",
-  },
-  ticketId: {
-    type: String,
-    default: null,
-  },
-  toEmails: {
-    type: Array,
-    default: () => [],
-  },
-  ccEmails: {
-    type: Array,
-    default: () => [],
-  },
-  bccEmails: {
-    type: Array,
-    default: () => [],
-  },
-});
+import { watch } from "vue";
 
 watch(
   () => showEmailBox.value,

@@ -38,8 +38,16 @@
     :cc-emails="[]"
     :bcc-emails="[]"
     :key="ticket.doc?.name"
+    :wa-thread="waThread"
     @update="
       () => {
+        activities.reload();
+        ticketAgentActivitiesRef?.scrollToLatestActivity();
+      }
+    "
+    @wa-sent="
+      () => {
+        waThread.resource.reload();
         activities.reload();
         ticketAgentActivitiesRef?.scrollToLatestActivity();
       }
@@ -55,7 +63,9 @@ import {
   EmailIcon,
   PhoneIcon,
 } from "@/components/icons";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import { useActiveTabManager } from "@/composables/useActiveTabManager";
+import { useWhatsAppThread } from "@/composables/useWhatsAppThread";
 import { useTelephonyStore } from "@/stores/telephony";
 import {
   ActivitiesSymbol,
@@ -80,6 +90,11 @@ const communicationAreaRef = ref<InstanceType<typeof CommunicationArea> | null>(
 );
 const telephonyStore = useTelephonyStore();
 const { isCallingEnabled } = storeToRefs(telephonyStore);
+
+// WhatsApp thread — feature-detected; available=false = no UI changes.
+const waThread = computed(() =>
+  useWhatsAppThread(String(ticket.value?.doc?.name || ""))
+);
 
 const tabs: ComputedRef<TabObject[]> = computed(() => {
   const _tabs: TabObject[] = [
@@ -107,10 +122,30 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
       icon: PhoneIcon,
     });
   }
+  // WhatsApp tab: only when thread is available (feature-detected).
+  if (waThread.value.available.value) {
+    _tabs.push({
+      name: "whatsapp" as TicketTab,
+      label: "WhatsApp",
+      icon: WhatsAppIcon,
+    });
+  }
   return _tabs;
 });
 
 const { tabIndex, changeTabTo } = useActiveTabManager(tabs);
+
+// Set of wamids from the WhatsApp thread — intended for excluding WA audit
+// Communications from the Emails tab. However, get_ticket_activities payload
+// does not expose message_id or communication_medium on Communication rows,
+// so this filter cannot match anything frontend-only (email.message_id is
+// undefined in the payload). The filter is a no-op today; hygiene is blocked
+// until get_communications() exposes message_id or communication_medium.
+// ponytail: tracked as open item in session-log; blocked, not skipped.
+const waMessageIds = computed<Set<string>>(() => {
+  const msgs = waThread.value.messages.value ?? [];
+  return new Set(msgs.map((m) => m.message_id).filter(Boolean) as string[]);
+});
 
 // TODO: refactor for pagination
 // can be done once we sort out the backend
@@ -119,8 +154,12 @@ const _activities = computed(() => {
   if (!activities.value?.data) {
     return [];
   }
-  const emailProps = activities.value?.data?.communications.map(
-    (email, idx: number) => {
+  // Exclude Communications whose message_id matches a WA thread wamid —
+  // those are WhatsApp audit copies, not email communications.
+  const emailProps = activities.value?.data?.communications
+    .filter((email: any) => !waMessageIds.value.has(email.message_id))
+    .map(
+    (email: any, idx: number) => {
       return {
         subject: email.subject,
         content: email.content,
@@ -142,7 +181,7 @@ const _activities = computed(() => {
     }
   );
 
-  const commentProps = activities.value.data.comments.map((comment) => {
+  const commentProps = activities.value.data.comments.map((comment: any) => {
     return {
       name: comment.name,
       type: "comment",
@@ -155,7 +194,7 @@ const _activities = computed(() => {
     };
   });
 
-  activities.value.data.history.map((h) => {
+  activities.value.data.history.map((h: any) => {
     // }
     h.action;
     h.owner;
@@ -169,7 +208,7 @@ const _activities = computed(() => {
   const historyProps = [
     ...activities.value.data.history,
     ...activities.value.data.views,
-  ].map((h) => {
+  ].map((h: any) => {
     return {
       type: "history",
       key: h.creation,
@@ -179,7 +218,7 @@ const _activities = computed(() => {
     };
   });
 
-  const callProps = activities.value.data.calls.map((call) => {
+  const callProps = activities.value.data.calls.map((call: any) => {
     return {
       ...call,
       type: "call",
@@ -193,13 +232,24 @@ const _activities = computed(() => {
     };
   });
 
+  // WhatsApp messages merged into the unified feed.
+  const waProps = (waThread.value.messages.value ?? []).map((m) => ({
+    type: "whatsapp",
+    key: `wa-${m.name}`,
+    creation: m.creation,
+    content: m.message || "",  // string content so history-grouping loop stays safe
+    // WhatsApp-specific fields passed through to WhatsAppArea.
+    waMessage: m,
+  }));
+
   const sorted = [
     ...emailProps,
     ...commentProps,
     ...historyProps,
     ...callProps,
-  ].sort((a, b) => new Date(a.creation) - new Date(b.creation));
-  const data = [];
+    ...waProps,
+  ].sort((a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime());
+  const data: any[] = [];
   let i = 0;
 
   while (i < sorted.length) {
@@ -254,10 +304,13 @@ const _activities = computed(() => {
   return data;
 });
 
-function filterActivities(eventType: TicketTab) {
+function filterActivities(eventType: TicketTab | string) {
   if (eventType === "activity") {
     return _activities.value;
   }
-  return _activities.value.filter((activity) => activity.type === eventType);
+  if (eventType === "whatsapp") {
+    return _activities.value.filter((a: any) => a.type === "whatsapp");
+  }
+  return _activities.value.filter((activity: any) => activity.type === eventType);
 }
 </script>

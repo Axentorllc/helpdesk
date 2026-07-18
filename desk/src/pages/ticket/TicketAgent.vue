@@ -55,6 +55,7 @@ import TicketSidebar from "@/components/ticket-agent/TicketSidebar.vue";
 import SetContactPhoneModal from "@/components/ticket/SetContactPhoneModal.vue";
 import { useActiveViewers } from "@/composables/realtime";
 import { reloadTicket, useTicket } from "@/composables/useTicket";
+import { reloadWhatsAppThread, useWhatsAppThread } from "@/composables/useWhatsAppThread";
 import { ticketsToNavigate } from "@/composables/useTicketNavigation";
 import { globalStore } from "@/stores/globalStore";
 import { useTelephonyStore } from "@/stores/telephony";
@@ -193,6 +194,26 @@ onMounted(() => {
       reloadTicket(props.ticketId);
     }
   });
+
+  // WhatsApp realtime: reload thread when a status or new message arrives for this ticket.
+  // Checks conversation membership to avoid reloading unrelated tickets.
+  $socket.on("axe_hd_wa_status", (data: { conversation: string; wa_message: string; status: string; status_error: string }) => {
+    const thread = useWhatsAppThread(props.ticketId);
+    const conv = thread.conversation.value;
+    if (conv && data.conversation === conv.name) {
+      reloadWhatsAppThread(props.ticketId);
+    }
+  });
+
+  $socket.on("whatsapp_message", (data: { message: string; from?: string; type?: string }) => {
+    // Incoming whatsapp_message event (fired by frappe_whatsapp fork on inbound).
+    // Reload if we have a thread for this ticket — conservative: we don't have
+    // ticket context in the event, so reload if available (low cost, correct).
+    const thread = useWhatsAppThread(props.ticketId);
+    if (thread.available.value) {
+      reloadWhatsAppThread(props.ticketId);
+    }
+  });
 });
 
 onBeforeUnmount(() => {
@@ -203,6 +224,8 @@ onBeforeUnmount(() => {
   $socket.off("ticket_update");
   $socket.off("helpdesk:ticket-comment");
   $socket.off("helpdesk:ticket-update");
+  $socket.off("axe_hd_wa_status");
+  $socket.off("whatsapp_message");
 });
 usePageMeta(() => {
   if (!ticket.value?.doc?.name) {
