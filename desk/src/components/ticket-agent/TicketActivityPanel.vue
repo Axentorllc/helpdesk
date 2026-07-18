@@ -92,9 +92,10 @@ const telephonyStore = useTelephonyStore();
 const { isCallingEnabled } = storeToRefs(telephonyStore);
 
 // WhatsApp thread — feature-detected; available=false = no UI changes.
-const waThread = computed(() =>
-  useWhatsAppThread(String(ticket.value?.doc?.name || ""))
-);
+// Direct call (not computed): TicketActivityPanel only mounts when ticket.doc.name
+// is set (parent v-if guard in TicketAgent.vue), so the ID is stable at setup time.
+// The thread resource's internal refs drive reactivity; no computed wrapper needed.
+const waThread = useWhatsAppThread(String(ticket.value?.doc?.name || ""));
 
 const tabs: ComputedRef<TabObject[]> = computed(() => {
   const _tabs: TabObject[] = [
@@ -123,7 +124,7 @@ const tabs: ComputedRef<TabObject[]> = computed(() => {
     });
   }
   // WhatsApp tab: only when thread is available (feature-detected).
-  if (waThread.value.available.value) {
+  if (waThread.available.value) {
     _tabs.push({
       name: "whatsapp" as TicketTab,
       label: "WhatsApp",
@@ -143,7 +144,7 @@ const { tabIndex, changeTabTo } = useActiveTabManager(tabs);
 // until get_communications() exposes message_id or communication_medium.
 // ponytail: tracked as open item in session-log; blocked, not skipped.
 const waMessageIds = computed<Set<string>>(() => {
-  const msgs = waThread.value.messages.value ?? [];
+  const msgs = waThread.messages.value ?? [];
   return new Set(msgs.map((m) => m.message_id).filter(Boolean) as string[]);
 });
 
@@ -233,7 +234,7 @@ const _activities = computed(() => {
   });
 
   // WhatsApp messages merged into the unified feed.
-  const waProps = (waThread.value.messages.value ?? []).map((m) => ({
+  const waProps = (waThread.messages.value ?? []).map((m) => ({
     type: "whatsapp",
     key: `wa-${m.name}`,
     creation: m.creation,
