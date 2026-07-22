@@ -5,6 +5,8 @@ from frappe.utils import cint, get_system_timezone
 from frappe.utils.jinja_globals import is_rtl
 from frappe.utils.telemetry import capture
 
+from helpdesk.utils import get_agent_name
+
 no_cache = 1
 
 
@@ -38,6 +40,7 @@ def get_boot():
             "agent": get_agent_name(),
             "date_format": frappe.get_system_settings("date_format"),
             "time_format": frappe.get_system_settings("time_format"),
+            "default_country": frappe.db.get_default("country"),
             "timezone": {
                 "system": get_system_timezone(),
                 "user": frappe.db.get_value("User", frappe.session.user, "time_zone")
@@ -46,6 +49,7 @@ def get_boot():
             "lang": frappe.local.lang,
             "dir": "rtl" if is_rtl() else "ltr",
             "apps": frappe.get_installed_apps(),
+            "telemetry": get_telemetry_boot(),
         }
     )
 
@@ -54,8 +58,16 @@ def get_default_route():
     return "/helpdesk"
 
 
-def get_agent_name():
-    agent = frappe.db.get_value("HD Agent", {"user": frappe.session.user}, "name")
-    if not agent:
-        return None
-    return agent
+def get_telemetry_boot():
+    """Direct-mode config for the browser telemetry client, as a boot value.
+
+    Telemetry must never break the page: older frappe versions have no pulse
+    module, and any boot_config error degrades to "disabled". The key it
+    ships is a public write-only ingest key (same as desk boot).
+    """
+    try:
+        from frappe.utils.telemetry.pulse.client import boot_config
+
+        return boot_config()
+    except Exception:
+        return {"enabled": False}
