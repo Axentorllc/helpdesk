@@ -86,3 +86,11 @@ export function useChannelThread(channel: string, ticketId: string) {
 export function reloadChannelThread(channel: string, ticketId: string) {
   threadMap[`${channel}:${ticketId}`]?.resource.reload();
 }
+
+// Revisit revalidation: refresh every already-fetched thread for this ticket
+// (mirrors useTicket's revalidateTicket for the email/comment caches).
+export function revalidateChannelThreads(ticketId: string) {
+  for (const key of Object.keys(threadMap)) {
+    if (key.endsWith(`:${ticketId}`)) threadMap[key].resource.reload();
+  }
+}

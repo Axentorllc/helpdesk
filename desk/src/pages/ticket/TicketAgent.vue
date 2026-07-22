@@ -59,7 +59,11 @@ import {
   revalidateTicket,
   useTicket,
 } from "@/composables/useTicket";
-import { reloadChannelThread, useChannelThread } from "@/composables/useChannelThread";
+import {
+  reloadChannelThread,
+  revalidateChannelThreads,
+  useChannelThread,
+} from "@/composables/useChannelThread";
 import { ticketsToNavigate } from "@/composables/useTicketNavigation";
 import { globalStore } from "@/stores/globalStore";
 import { useTelephonyStore } from "@/stores/telephony";
@@ -162,7 +166,10 @@ watch(
 
     // Switching to an already-visited ticket: show its cached conversation and
     // refresh it in the background in case it changed while we were elsewhere.
-    if (oldTicketId) revalidateTicket(newTicketId as string);
+    if (oldTicketId) {
+      revalidateTicket(newTicketId as string);
+      revalidateChannelThreads(newTicketId as string);
+    }
   },
   { immediate: true }
 );
@@ -178,6 +185,7 @@ onMounted(() => {
   // Revisiting a ticket: show the cached conversation immediately and refresh it
   // in place, since a reply may have arrived while the socket listener was off.
   revalidateTicket(props.ticketId);
+  revalidateChannelThreads(props.ticketId);
 
   ticketsToNavigate.update({
     params: {
