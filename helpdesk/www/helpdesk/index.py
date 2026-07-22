@@ -13,6 +13,7 @@ no_cache = 1
 def get_context(context):
     frappe.db.commit()
     context.boot = get_boot()
+    context.helpdesk_include_js = frappe.get_hooks("helpdesk_include_js") or []
 
     # telemetry
     if frappe.session.user != "Guest":

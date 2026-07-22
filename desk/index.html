@@ -207,5 +207,8 @@
     <script>
       window.site_name = "{{ site_name }}";
     </script>
+    {% for src in helpdesk_include_js or [] %}
+    <script src="{{ src }}" defer></script>
+    {% endfor %}
   </body>
 </html>
