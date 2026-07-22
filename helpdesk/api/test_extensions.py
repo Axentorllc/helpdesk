@@ -30,10 +30,6 @@ def get_thread(ticket):
     return {"conversation": {"source_id": "s1"}, "messages": [], "ticket": ticket}
 
 
-def get_state(conversation):
-    return {"window_open": True, "source_id": "s1", "conversation": conversation}
-
-
 def list_templates(language=None):
     return {"templates": [{"name": "t1", "language_code": language}]}
 

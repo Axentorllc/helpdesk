@@ -150,7 +150,7 @@ import { useScreenSize } from "@/composables/screen";
 import { useShortcut } from "@/composables/shortcuts";
 import { showCommentBox, showEmailBox } from "@/pages/ticket/modalStates";
 import { onClickOutside } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 const emit = defineEmits(["update", "channel-sent"]);
 const content = defineModel("content");
@@ -266,8 +266,6 @@ function replyToEmail(data: object) {
     splitIfString(data.bcc)
   );
 }
-
-import { watch } from "vue";
 
 watch(
   () => showEmailBox.value,

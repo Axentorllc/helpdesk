@@ -1,10 +1,9 @@
-"""Channel dispatch: route generic thread/state/template/send calls to a plugin adapter.
+"""Channel dispatch: route generic thread/template/send calls to a plugin adapter.
 
 The adapter dotted path is resolved ONLY from the `helpdesk_channels` hook, never from
 client input — the client passes an opaque `channel_key` and the fork looks up the
 server-side adapter. Adapter contract (per plugin, all `frappe.get_attr`-callable):
     get_thread(ticket)                                   -> {conversation, messages, ...}
-    get_state(conversation)                              -> {window_open, source_id, ...}
     list_templates(language=None)                        -> {templates: [...]}
     send(conversation, message=, template=, template_params=) -> {message_name, message_id}
 Send raises frappe.ValidationError with user-facing messages (composer toasts).
@@ -39,13 +38,6 @@ def _adapter_fn(channel, fn):
 def get_thread(channel, ticket):
     fn, _entry = _adapter_fn(channel, "get_thread")
     return fn(ticket)
-
-
-@frappe.whitelist(methods=["GET"])
-@agent_only
-def get_state(channel, conversation):
-    fn, _entry = _adapter_fn(channel, "get_state")
-    return fn(conversation)
 
 
 @frappe.whitelist(methods=["GET"])

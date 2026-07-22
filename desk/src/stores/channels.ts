@@ -25,13 +25,12 @@ export interface ChannelManifestEntry {
 export interface PanelManifestEntry {
   panel_key: string;
   title: string;
-  type: "fields" | "html" | "relations" | "iframe";
+  type: "html" | "relations";
   api?: string;
   create_api?: string | null;
   condition_field?: string | null;
   pinned?: boolean;
   order?: number;
-  src?: string | null;
 }
 
 // Icon key -> component. Fork ships channel icons (Chatwoot precedent); unknown keys
