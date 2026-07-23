@@ -52,11 +52,15 @@ def list_templates(channel, language=None):
 
 @frappe.whitelist(methods=["POST"])
 @agent_only
-def send(channel, conversation, message=None, template=None, template_params=None):
-    fn, _entry = _adapter_fn(channel, "send")
+def send(channel, conversation, message=None, template=None, template_params=None,
+         attachments=None):
+    fn, entry = _adapter_fn(channel, "send")
+    if attachments and not (entry.get("capabilities") or {}).get("media"):
+        frappe.throw(_("This channel does not support media attachments."))
     return fn(
         conversation,
         message=message,
         template=template,
         template_params=template_params,
+        attachments=attachments,
     )

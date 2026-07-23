@@ -35,14 +35,41 @@
       {{ activity.message }}
     </div>
 
-    <!-- Image/sticker: inline thumbnail -->
+    <!-- Media: image/sticker inline, video/audio players, document/file download link -->
     <div v-else-if="isMedia && activity.attach">
-      <a :href="activity.attach" target="_blank" rel="noopener">
+      <a
+        v-if="isImage"
+        :href="activity.attach"
+        target="_blank"
+        rel="noopener"
+      >
         <img
           :src="activity.attach"
           class="max-h-48 max-w-full rounded object-contain border border-outline-gray-2"
           :alt="activity.content_type"
         />
+      </a>
+      <video
+        v-else-if="activity.content_type === 'video'"
+        :src="activity.attach"
+        controls
+        class="max-h-48 max-w-full rounded border border-outline-gray-2"
+      />
+      <audio
+        v-else-if="activity.content_type === 'audio'"
+        :src="activity.attach"
+        controls
+        class="max-w-full"
+      />
+      <a
+        v-else
+        :href="activity.attach"
+        target="_blank"
+        rel="noopener"
+        class="inline-flex items-center gap-1 text-p-base text-ink-gray-8 underline"
+      >
+        <FeatherIcon name="paperclip" class="h-4 w-4" />
+        {{ attachName }}
       </a>
     </div>
 
@@ -63,7 +90,7 @@
 
 <script setup lang="ts">
 import { dateFormat, dateTooltipFormat, timeAgo } from "@/utils";
-import { Badge, Tooltip } from "frappe-ui";
+import { Badge, FeatherIcon, Tooltip } from "frappe-ui";
 import { computed } from "vue";
 
 const props = defineProps({
@@ -91,10 +118,19 @@ const isText = computed(() =>
 );
 
 const isMedia = computed(() =>
-  ["image", "sticker", "video", "audio", "document"].includes(
+  ["image", "sticker", "video", "audio", "document", "file"].includes(
     props.activity.content_type
   )
 );
+
+const isImage = computed(() =>
+  ["image", "sticker"].includes(props.activity.content_type)
+);
+
+const attachName = computed(() => {
+  const url = props.activity.attach || "";
+  return decodeURIComponent(url.split("/").pop() || "") || __("Attachment");
+});
 
 // Mirror EmailArea status badge logic (same color tokens).
 const statusBadge = computed(() => {

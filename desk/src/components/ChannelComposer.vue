@@ -19,31 +19,118 @@
       </div>
 
       <!-- Free-text area (window open, or channel has no session window) -->
-      <div v-if="windowOpen" class="flex flex-col gap-2">
+      <div v-if="windowOpen && !showTemplates" class="flex flex-col gap-2">
         <textarea
+          ref="textareaRef"
           v-model="messageText"
           :placeholder="composerPlaceholder"
           class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-base text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-4 focus:outline-none min-h-[80px]"
           dir="auto"
         />
-        <div class="flex justify-end gap-2">
-          <Button
-            label="Discard"
-            @click="emit('discard')"
-          />
-          <Button
-            variant="solid"
-            :label="sending ? __('Sending…') : sendLabel"
-            :loading="sending"
-            :disabled="!messageText.trim() || sending"
-            @click="sendMessage"
-          />
+
+        <!-- Attachments chips (media capability only) -->
+        <div v-if="attachments.length" class="flex flex-wrap gap-2">
+          <AttachmentItem
+            v-for="a in attachments"
+            :key="a.file_url"
+            :label="a.file_name"
+            :url="a.file_url"
+          >
+            <template #suffix>
+              <FeatherIcon
+                class="h-3.5"
+                name="x"
+                @click.self.stop="removeAttachment(a)"
+              />
+            </template>
+          </AttachmentItem>
+        </div>
+
+        <!-- Formatting toolbar + action buttons -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1">
+            <!-- Formatting buttons: WhatsApp markdown markers -->
+            <button
+              v-for="fmt in formatButtons"
+              :key="fmt.marker"
+              class="flex rounded p-1 text-ink-gray-8 transition-colors hover:bg-surface-gray-3 text-xs font-mono"
+              :title="fmt.label"
+              @click="wrapSelection(fmt.marker)"
+            >{{ fmt.icon }}</button>
+
+            <div class="h-4 w-[2px] border-s mx-1" />
+
+            <!-- Attach (media capability only) -->
+            <!-- ponytail: public upload — Meta fetches by link; upgrade path is Meta's media-upload API (binary → media id) in axon send modules. -->
+            <FileUploader
+              v-if="capabilities.media"
+              :upload-args="{
+                doctype: 'HD Ticket',
+                docname: ticketId,
+                private: false,
+              }"
+              @success="(f) => attachments.push(f)"
+            >
+              <template #default="{ openFileSelector, uploading }">
+                <button
+                  class="flex rounded p-1 text-ink-gray-8 transition-colors hover:bg-surface-gray-3"
+                  :disabled="uploading"
+                  :title="__('Attach file')"
+                  @click="openFileSelector()"
+                >
+                  <FeatherIcon name="paperclip" class="h-4 w-4" />
+                </button>
+              </template>
+            </FileUploader>
+
+            <!-- Saved Replies -->
+            <button
+              class="flex rounded p-1 text-ink-gray-8 transition-colors hover:bg-surface-gray-3"
+              :title="__('Saved replies')"
+              @click="showSavedReplies = true"
+            >
+              <FeatherIcon name="book-open" class="h-4 w-4" />
+            </button>
+
+            <!-- Switch to template (templates capability, window open) -->
+            <button
+              v-if="capabilities.templates"
+              class="flex rounded p-1 text-ink-gray-8 transition-colors hover:bg-surface-gray-3 text-p-xs"
+              :title="__('Send a template')"
+              @click="showTemplates = true"
+            >
+              <FeatherIcon name="layout" class="h-4 w-4" />
+            </button>
+          </div>
+
+          <div class="flex gap-2">
+            <Button
+              label="Discard"
+              @click="emit('discard')"
+            />
+            <Button
+              variant="solid"
+              :label="sending ? __('Sending…') : sendLabel"
+              :loading="sending"
+              :disabled="(!messageText.trim() && !attachments.length) || sending"
+              @click="sendMessage"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Template picker (window closed + templates capability) -->
-      <div v-else-if="capabilities.templates" class="flex flex-col gap-2">
-        <div class="text-p-sm text-ink-gray-5 mb-1">
+      <!-- Template picker (window closed + templates capability, OR showTemplates toggled) -->
+      <div v-else-if="capabilities.templates && (!windowOpen || showTemplates)" class="flex flex-col gap-2">
+        <!-- Back button (only shown when window is open and user toggled to templates) -->
+        <button
+          v-if="windowOpen && showTemplates"
+          class="self-start flex items-center gap-1 text-p-sm text-ink-gray-5 hover:text-ink-gray-8"
+          @click="showTemplates = false"
+        >
+          <FeatherIcon name="arrow-left" class="h-3.5 w-3.5" />
+          {{ __("Back to message") }}
+        </button>
+        <div v-else class="text-p-sm text-ink-gray-5 mb-1">
           {{ __("Select a pre-approved template to re-engage the customer.") }}
         </div>
         <Autocomplete
@@ -79,13 +166,22 @@
       </div>
     </div>
   </div>
+
+  <SavedRepliesSelectorModal
+    v-model="showSavedReplies"
+    doctype="HD Ticket"
+    :ticketId="ticketId"
+    @apply="applySavedReply"
+  />
 </template>
 
 <script setup lang="ts">
 import { __ } from "@/translation";
+import { AttachmentItem, SavedRepliesSelectorModal } from "@/components";
 import { Autocomplete } from "@/components";
-import { Badge, Button, createResource, dayjsLocal, toast } from "frappe-ui";
-import { computed, onUnmounted, ref } from "vue";
+import { htmlToWhatsApp, removeAttachmentFromServer } from "@/utils";
+import { Badge, Button, FeatherIcon, FileUploader, createResource, dayjsLocal, toast } from "frappe-ui";
+import { computed, nextTick, onUnmounted, ref } from "vue";
 import type { ChannelConversation } from "@/composables/useChannelThread";
 
 const props = defineProps<{
@@ -105,11 +201,56 @@ const windowOpen = computed(() =>
 const messageText = ref("");
 const sending = ref(false);
 const selectedTemplate = ref<{ label: string; value: string } | null>(null);
+const showTemplates = ref(false);
+const showSavedReplies = ref(false);
+const attachments = ref<any[]>([]);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const sendLabel = computed(() => `${__("Send via")} ${props.label}`);
 const composerPlaceholder = computed(
   () => `${__("Type a")} ${props.label} ${__("message…")}`
 );
+
+// ── Formatting toolbar ────────────────────────────────────────────────────────
+const formatButtons = [
+  { marker: "*", label: __("Bold"), icon: "B" },
+  { marker: "_", label: __("Italic"), icon: "I" },
+  { marker: "~", label: __("Strikethrough"), icon: "S" },
+  { marker: "`", label: __("Monospace"), icon: "M" },
+];
+
+async function wrapSelection(marker: string) {
+  const el = textareaRef.value;
+  if (!el) return;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const text = messageText.value;
+  messageText.value = text.slice(0, start) + marker + text.slice(start, end) + marker + text.slice(end);
+  await nextTick();
+  el.focus();
+  // Empty selection: cursor between the markers so the user types inside them.
+  const newPos = start === end ? start + marker.length : end + marker.length * 2;
+  el.setSelectionRange(newPos, newPos);
+}
+
+// ── Saved replies ─────────────────────────────────────────────────────────────
+function applySavedReply(html: string) {
+  const converted = htmlToWhatsApp(html);
+  const el = textareaRef.value;
+  if (el) {
+    const start = el.selectionStart;
+    const text = messageText.value;
+    messageText.value = text.slice(0, start) + converted + text.slice(start);
+  } else {
+    messageText.value += converted;
+  }
+}
+
+// ── Attachments ───────────────────────────────────────────────────────────────
+async function removeAttachment(attachment: any) {
+  attachments.value = attachments.value.filter((a) => a !== attachment);
+  await removeAttachmentFromServer(attachment.name);
+}
 
 // ── Window countdown ─────────────────────────────────────────────────────────
 const windowCountdown = ref("");
@@ -168,6 +309,8 @@ const sendResource = createResource({
     sending.value = false;
     messageText.value = "";
     selectedTemplate.value = null;
+    attachments.value = [];
+    showTemplates.value = false;
     emit("sent");
     toast.success(__("Message sent."));
   },
@@ -182,12 +325,15 @@ const sendResource = createResource({
 });
 
 function sendMessage() {
-  if (!messageText.value.trim()) return;
+  if (!messageText.value.trim() && !attachments.value.length) return;
   sending.value = true;
   sendResource.submit({
     channel: props.channel,
     conversation: props.conversation.name,
-    message: messageText.value.trim(),
+    message: messageText.value.trim() || undefined,
+    attachments: attachments.value.length
+      ? JSON.stringify(attachments.value.map((a) => a.file_url))
+      : undefined,
   });
 }
 
