@@ -20,6 +20,8 @@ export interface ChannelManifestEntry {
   label: string;
   icon: string;
   capabilities: Record<string, boolean>;
+  // Optional composer toolbar markers — declared by the plugin (wire-format syntax).
+  text_markers?: { marker: string; label: string; icon: string }[];
 }
 
 export interface PanelManifestEntry {

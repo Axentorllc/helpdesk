@@ -6,6 +6,7 @@ server-side adapter. Adapter contract (per plugin, all `frappe.get_attr`-callabl
     get_thread(ticket)                                   -> {conversation, messages, ...}
     list_templates(language=None)                        -> {templates: [...]}
     send(conversation, message=, template=, template_params=) -> {message_name, message_id}
+    format_html(html)  [optional]                        -> channel wire-format text
 Send raises frappe.ValidationError with user-facing messages (composer toasts).
 """
 
@@ -64,3 +65,19 @@ def send(channel, conversation, message=None, template=None, template_params=Non
         template_params=template_params,
         attachments=attachments,
     )
+
+
+@frappe.whitelist(methods=["POST"])
+@agent_only
+def format_html(channel, html):
+    """Convert rich HTML (e.g. a saved reply) to the channel's wire format.
+
+    Dispatches to the adapter's optional `format_html(html)`; falls back to
+    stripped plain text so channels without a formatter still get usable text.
+    """
+    entry = _channel_entry(channel)
+    try:
+        fn = frappe.get_attr(entry["adapter"] + ".format_html")
+    except (AttributeError, ImportError):
+        return {"text": frappe.utils.strip_html(html or "")}
+    return {"text": fn(html)}

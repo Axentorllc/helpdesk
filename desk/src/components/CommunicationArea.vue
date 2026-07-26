@@ -127,6 +127,7 @@
           :channel="c.channel_key"
           :label="c.label"
           :capabilities="c.capabilities"
+          :text-markers="c.text_markers"
           @discard="activeComposerChannel = null"
           @sent="
             () => {
@@ -206,6 +207,7 @@ const channelComposers = computed(() =>
       label: ch.label,
       icon: ch.icon,
       capabilities: ch.capabilities,
+      text_markers: ch.text_markers,
       conversation: ch.thread.conversation.value,
     }))
 );

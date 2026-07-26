@@ -49,16 +49,16 @@
         <!-- Formatting toolbar + action buttons -->
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1">
-            <!-- Formatting buttons: WhatsApp markdown markers -->
+            <!-- Formatting buttons: wire-format markers from the channel manifest -->
             <button
               v-for="fmt in formatButtons"
               :key="fmt.marker"
               class="flex rounded p-1 text-ink-gray-8 transition-colors hover:bg-surface-gray-3 text-xs font-mono"
-              :title="fmt.label"
+              :title="__(fmt.label)"
               @click="wrapSelection(fmt.marker)"
             >{{ fmt.icon }}</button>
 
-            <div class="h-4 w-[2px] border-s mx-1" />
+            <div v-if="formatButtons.length" class="h-4 w-[2px] border-s mx-1" />
 
             <!-- Attach (media capability only) -->
             <!-- ponytail: public upload — Meta fetches by link; upgrade path is Meta's media-upload API (binary → media id) in axon send modules. -->
@@ -179,8 +179,8 @@
 import { __ } from "@/translation";
 import { AttachmentItem, SavedRepliesSelectorModal } from "@/components";
 import { Autocomplete } from "@/components";
-import { htmlToWhatsApp, removeAttachmentFromServer } from "@/utils";
-import { Badge, Button, FeatherIcon, FileUploader, createResource, dayjsLocal, toast } from "frappe-ui";
+import { removeAttachmentFromServer } from "@/utils";
+import { Badge, Button, FeatherIcon, FileUploader, call, createResource, dayjsLocal, toast } from "frappe-ui";
 import { computed, nextTick, onUnmounted, ref } from "vue";
 import type { ChannelConversation } from "@/composables/useChannelThread";
 
@@ -190,6 +190,7 @@ const props = defineProps<{
   channel: string;
   label: string;
   capabilities: Record<string, boolean>;
+  textMarkers?: { marker: string; label: string; icon: string }[];
 }>();
 
 const emit = defineEmits(["discard", "sent"]);
@@ -212,12 +213,9 @@ const composerPlaceholder = computed(
 );
 
 // ── Formatting toolbar ────────────────────────────────────────────────────────
-const formatButtons = [
-  { marker: "*", label: __("Bold"), icon: "B" },
-  { marker: "_", label: __("Italic"), icon: "I" },
-  { marker: "~", label: __("Strikethrough"), icon: "S" },
-  { marker: "`", label: __("Monospace"), icon: "M" },
-];
+// Marker set comes from the channel manifest (`text_markers`) — wire-format
+// syntax is the plugin adapter's business, not the fork's.
+const formatButtons = computed(() => props.textMarkers ?? []);
 
 async function wrapSelection(marker: string) {
   const el = textareaRef.value;
@@ -234,8 +232,20 @@ async function wrapSelection(marker: string) {
 }
 
 // ── Saved replies ─────────────────────────────────────────────────────────────
-function applySavedReply(html: string) {
-  const converted = htmlToWhatsApp(html);
+// HTML → wire-format conversion is dispatched to the channel's adapter
+// (helpdesk.api.channels.format_html); the fork stays channel-agnostic.
+async function applySavedReply(html: string) {
+  let converted = "";
+  try {
+    const res = await call("helpdesk.api.channels.format_html", {
+      channel: props.channel,
+      html,
+    });
+    converted = res?.text ?? "";
+  } catch {
+    toast.error(__("Could not format the saved reply for this channel"));
+    return;
+  }
   const el = textareaRef.value;
   if (el) {
     const start = el.selectionStart;

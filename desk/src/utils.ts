@@ -422,45 +422,6 @@ export function getFontFamily(content: string) {
 }
 
 /**
- * Convert HTML to WhatsApp-formatted text (* bold *, _ italic _, ~ strike ~, `code`).
- * DOMParser walk: structural elements emit newlines; inline marks wrap with markers.
- * @param html - HTML string to convert
- * @returns WhatsApp-markdown text with collapsed blank lines
- */
-export function htmlToWhatsApp(html: string): string {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-
-  function walk(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent || "";
-    if (node.nodeType !== Node.ELEMENT_NODE) return "";
-    const el = node as Element;
-    const tag = el.tagName.toLowerCase();
-    const inner = Array.from(el.childNodes).map(walk).join("");
-
-    if (tag === "b" || tag === "strong") return inner ? `*${inner}*` : "";
-    if (tag === "i" || tag === "em") return inner ? `_${inner}_` : "";
-    if (tag === "s" || tag === "del" || tag === "strike") return inner ? `~${inner}~` : "";
-    if (tag === "code") return inner ? `\`${inner}\`` : "";
-    if (tag === "pre") return `\`\`\`\n${inner}\n\`\`\`\n`;
-    if (tag === "li") return `- ${inner}\n`;
-    if (tag === "a") {
-      const href = el.getAttribute("href");
-      return href && href !== inner ? `${inner} (${href})` : inner;
-    }
-    if (tag === "br") return "\n";
-    if (tag === "p" || tag === "div") return `${inner}\n`;
-    if (tag === "ul" || tag === "ol") return `${inner}\n`;
-    if (tag === "blockquote") return `${inner}\n`;
-    return inner;
-  }
-
-  const text = walk(doc.body);
-  // Collapse 3+ consecutive newlines to 2.
-  return text.replace(/\n{3,}/g, "\n\n").trim();
-}
-
-/**
  * Parses HTML string and returns the text content with preserved line breaks
  * @param html - HTML string to parse
  * @returns Plain text content with preserved line breaks
