@@ -62,13 +62,13 @@
             <div v-if="formatButtons.length" class="h-4 w-[2px] border-s mx-1" />
 
             <!-- Attach (media capability only) -->
-            <!-- ponytail: public upload — Meta fetches by link; upgrade path is Meta's media-upload API (binary → media id) in axon send modules. -->
+            <!-- ponytail: Meta = public (Meta fetches by link); webchat = private, token-gated guest streaming. upgrade path: Meta binary-upload API (binary → media id) in axon send modules. -->
             <FileUploader
               v-if="capabilities.media"
               :upload-args="{
                 doctype: 'HD Ticket',
                 docname: ticketId,
-                private: false,
+                private: !!capabilities.media_private,
               }"
               @success="(f) => attachments.push(f)"
             >
