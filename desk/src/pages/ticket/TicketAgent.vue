@@ -62,6 +62,7 @@ import {
 import {
   reloadChannelThread,
   revalidateChannelThreads,
+  setChannelTyping,
   useChannelThread,
 } from "@/composables/useChannelThread";
 import { ticketsToNavigate } from "@/composables/useTicketNavigation";
@@ -215,7 +216,7 @@ onMounted(() => {
     }
   });
 
-  // Channel realtime: one generic event for any plugged-in channel (message or status).
+  // Channel realtime: one generic event for any plugged-in channel (message, status, typing).
   // Carries ticket context, so we target this ticket precisely instead of a blanket reload.
   $socket.on("hd_channel_event", (data: { channel: string; event: string; ticket: string | null; conversation: string | null }) => {
     const thread = useChannelThread(data.channel, props.ticketId);
@@ -223,6 +224,10 @@ onMounted(() => {
       data.ticket === props.ticketId ||
       (data.conversation && thread.conversation.value?.name === data.conversation)
     ) {
+      if (data.event === "typing") {
+        setChannelTyping(data.channel, props.ticketId);
+        return;
+      }
       reloadChannelThread(data.channel, props.ticketId);
     }
   });

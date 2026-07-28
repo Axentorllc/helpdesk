@@ -105,12 +105,13 @@
       </div>
     </div>
     <div
-      v-else
+      v-if="!activities.length"
       class="h-screen flex flex-col items-center justify-center gap-3 text-2xl-medium text-ink-gray-4"
     >
       <component :is="emptyTextIcon" class="h-7.5 w-7.5" />
       <span class="text-lg-medium text-ink-gray-8">{{ __(emptyText) }}</span>
     </div>
+    <ChannelTypingRow v-if="typingLabel" :label="typingLabel" />
   </FadedScrollableDiv>
 </template>
 
@@ -134,6 +135,7 @@ import CommentBox from "@/components/CommentBox.vue";
 import EmailArea from "@/components/EmailArea.vue";
 import HistoryBox from "@/components/HistoryBox.vue";
 import ChannelThreadArea from "@/components/ChannelThreadArea.vue";
+import ChannelTypingRow from "@/components/ChannelTypingRow.vue";
 
 const props = defineProps({
   activities: {
@@ -145,6 +147,10 @@ const props = defineProps({
     required: true,
   },
   ticketStatus: {
+    type: String,
+    default: "",
+  },
+  typingLabel: {
     type: String,
     default: "",
   },

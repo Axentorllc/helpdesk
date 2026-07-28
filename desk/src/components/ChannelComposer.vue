@@ -26,6 +26,7 @@
           :placeholder="composerPlaceholder"
           class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-base text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-4 focus:outline-none min-h-[80px]"
           dir="auto"
+          @input="onTyping"
         />
 
         <!-- Attachments chips (media capability only) -->
@@ -211,6 +212,20 @@ const sendLabel = computed(() => `${__("Send via")} ${props.label}`);
 const composerPlaceholder = computed(
   () => `${__("Type a")} ${props.label} ${__("message…")}`
 );
+
+// ── Typing indicator ─────────────────────────────────────────────────────────
+// Leading-edge 3s throttle: fires on first keystroke, then not again for 3s.
+let _typingThrottle: ReturnType<typeof setTimeout> | null = null;
+
+function onTyping() {
+  if (!props.capabilities.typing) return;
+  if (_typingThrottle) return;
+  call("helpdesk.api.channels.typing", {
+    channel: props.channel,
+    conversation: props.conversation.name,
+  }).catch(() => {});
+  _typingThrottle = setTimeout(() => { _typingThrottle = null; }, 3000);
+}
 
 // ── Formatting toolbar ────────────────────────────────────────────────────────
 // Marker set comes from the channel manifest (`text_markers`) — wire-format

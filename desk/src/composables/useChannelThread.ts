@@ -51,6 +51,14 @@ function _makeThread(channel: string, ticketId: string) {
   const available = ref(false);
   const conversation = ref<ChannelConversation | null>(null);
   const messages = ref<ChannelMessage[]>([]);
+  const typing = ref(false);
+  let _typingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function bumpTyping() {
+    typing.value = true;
+    if (_typingTimer) clearTimeout(_typingTimer);
+    _typingTimer = setTimeout(() => { typing.value = false; }, 5000);
+  }
 
   const resource = createResource({
     url: "helpdesk.api.channels.get_thread",
@@ -65,6 +73,9 @@ function _makeThread(channel: string, ticketId: string) {
       available.value = true;
       conversation.value = data.conversation ?? null;
       messages.value = data.messages ?? [];
+      // A real message beats the typing timer.
+      typing.value = false;
+      if (_typingTimer) { clearTimeout(_typingTimer); _typingTimer = null; }
     },
     onError() {
       // HTTP 403/404 or plugin not installed — stay dormant, no crash.
@@ -72,7 +83,7 @@ function _makeThread(channel: string, ticketId: string) {
     },
   });
 
-  return { available, conversation, messages, resource };
+  return { available, conversation, messages, typing, bumpTyping, resource };
 }
 
 export function useChannelThread(channel: string, ticketId: string) {
@@ -83,8 +94,16 @@ export function useChannelThread(channel: string, ticketId: string) {
   return threadMap[key];
 }
 
+export function setChannelTyping(channel: string, ticketId: string) {
+  threadMap[`${channel}:${ticketId}`]?.bumpTyping();
+}
+
 export function reloadChannelThread(channel: string, ticketId: string) {
-  threadMap[`${channel}:${ticketId}`]?.resource.reload();
+  const t = threadMap[`${channel}:${ticketId}`];
+  if (t) {
+    t.typing.value = false;
+    t.resource.reload();
+  }
 }
 
 // Revisit revalidation: refresh every already-fetched thread for this ticket

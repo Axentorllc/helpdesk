@@ -12,6 +12,7 @@
         :activities="filterActivities(tab.name)"
         :title="tab.label"
         :ticket-status="ticket.doc.status"
+        :typing-label="typingLabelFor(tab.name)"
         @email:reply="
           (e) => {
             communicationAreaRef?.replyToEmail(e);
@@ -331,6 +332,20 @@ const _activities = computed(() => {
 
   return data;
 });
+
+function typingLabelFor(tabName: string): string {
+  // Unified activity tab shows any typing channel; a channel tab only its own.
+  const ch = channelThreads.value.find(
+    (c) =>
+      (tabName === "activity" || c.channel_key === tabName) &&
+      c.capabilities?.typing &&
+      c.thread.typing?.value &&
+      c.thread.conversation.value
+  );
+  if (!ch) return "";
+  const name = ch.thread.conversation.value.profile_name || "Customer";
+  return `${name} is typing`;
+}
 
 function filterActivities(eventType: TicketTab | string) {
   if (eventType === "activity") {

@@ -69,6 +69,23 @@ def send(channel, conversation, message=None, template=None, template_params=Non
 
 @frappe.whitelist(methods=["POST"])
 @agent_only
+def typing(channel, conversation):
+    """Signal agent-typing to the visitor. Dispatched to the adapter's optional typing().
+
+    Adapter contract: typing(conversation) [optional]. Channels without it (WhatsApp,
+    Messenger) silently return {ok: False}. Mirrors format_html's get_attr guard.
+    """
+    entry = _channel_entry(channel)
+    try:
+        fn = frappe.get_attr(entry["adapter"] + ".typing")
+    except (AttributeError, ImportError):
+        return {"ok": False}
+    fn(conversation)
+    return {"ok": True}
+
+
+@frappe.whitelist(methods=["POST"])
+@agent_only
 def format_html(channel, html):
     """Convert rich HTML (e.g. a saved reply) to the channel's wire format.
 
