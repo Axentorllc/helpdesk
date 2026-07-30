@@ -129,12 +129,7 @@
           :capabilities="c.capabilities"
           :text-markers="c.text_markers"
           @discard="activeComposerChannel = null"
-          @sent="
-            () => {
-              activeComposerChannel = null;
-              emit('channel-sent', c.channel_key);
-            }
-          "
+          @sent="() => emit('channel-sent', c.channel_key)"
         />
       </div>
     </Transition>

@@ -338,6 +338,7 @@ const sendResource = createResource({
     showTemplates.value = false;
     emit("sent");
     toast.success(__("Message sent."));
+    nextTick(() => textareaRef.value?.focus());
   },
   onError(err: any) {
     sending.value = false;
