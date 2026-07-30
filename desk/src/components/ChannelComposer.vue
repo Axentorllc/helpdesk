@@ -27,10 +27,11 @@
           class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-base text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-4 focus:outline-none min-h-[80px]"
           dir="auto"
           @input="onTyping"
+          @paste="onPaste"
         />
 
         <!-- Attachments chips (media capability only) -->
-        <div v-if="attachments.length" class="flex flex-wrap gap-2">
+        <div v-if="attachments.length || pendingFiles.length" class="flex flex-wrap gap-2 items-center">
           <AttachmentItem
             v-for="a in attachments"
             :key="a.file_url"
@@ -45,6 +46,23 @@
               />
             </template>
           </AttachmentItem>
+          <!-- Pasted files: inline image preview or name chip; uploaded at send -->
+          <template v-for="p in pendingFiles" :key="p.previewUrl">
+            <div class="relative flex items-center">
+              <img
+                v-if="p.file.type.startsWith('image/')"
+                :src="p.previewUrl"
+                class="h-16 rounded border border-outline-gray-2 object-cover"
+              />
+              <span v-else class="rounded border border-outline-gray-2 px-2 py-1 text-p-sm text-ink-gray-7">{{ p.file.name }}</span>
+              <button
+                class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-surface-gray-4 text-ink-gray-8"
+                @click="removePending(p)"
+              >
+                <FeatherIcon name="x" class="h-3 w-3" />
+              </button>
+            </div>
+          </template>
         </div>
 
         <!-- Formatting toolbar + action buttons -->
@@ -113,7 +131,7 @@
               variant="solid"
               :label="sending ? __('Sending…') : sendLabel"
               :loading="sending"
-              :disabled="(!messageText.trim() && !attachments.length) || sending"
+              :disabled="(!messageText.trim() && !attachments.length && !pendingFiles.length) || sending"
               @click="sendMessage"
             />
           </div>
@@ -180,7 +198,7 @@
 import { __ } from "@/translation";
 import { AttachmentItem, SavedRepliesSelectorModal } from "@/components";
 import { Autocomplete } from "@/components";
-import { removeAttachmentFromServer } from "@/utils";
+import { removeAttachmentFromServer, uploadFunction } from "@/utils";
 import { Badge, Button, FeatherIcon, FileUploader, call, createResource, dayjsLocal, toast } from "frappe-ui";
 import { computed, nextTick, onUnmounted, ref } from "vue";
 import type { ChannelConversation } from "@/composables/useChannelThread";
@@ -206,6 +224,7 @@ const selectedTemplate = ref<{ label: string; value: string } | null>(null);
 const showTemplates = ref(false);
 const showSavedReplies = ref(false);
 const attachments = ref<any[]>([]);
+const pendingFiles = ref<{ file: File; previewUrl: string }[]>([]);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const sendLabel = computed(() => `${__("Send via")} ${props.label}`);
@@ -277,6 +296,23 @@ async function removeAttachment(attachment: any) {
   await removeAttachmentFromServer(attachment.name);
 }
 
+function removePending(p: { file: File; previewUrl: string }) {
+  pendingFiles.value = pendingFiles.value.filter((x) => x !== p);
+  URL.revokeObjectURL(p.previewUrl);
+}
+
+// Ctrl-V paste: capture image files for inline preview; deferred upload at send.
+// Text-only paste falls through (no preventDefault) — unaffected.
+function onPaste(e: ClipboardEvent) {
+  if (!props.capabilities.media) return;
+  const files = e.clipboardData?.files;
+  if (!files?.length) return;
+  e.preventDefault();
+  for (const file of Array.from(files)) {
+    pendingFiles.value.push({ file, previewUrl: URL.createObjectURL(file) });
+  }
+}
+
 // ── Window countdown ─────────────────────────────────────────────────────────
 const windowCountdown = ref("");
 
@@ -301,7 +337,10 @@ function updateCountdown() {
 
 updateCountdown();
 const _timer = setInterval(updateCountdown, 60000);
-onUnmounted(() => clearInterval(_timer));
+onUnmounted(() => {
+  clearInterval(_timer);
+  for (const p of pendingFiles.value) URL.revokeObjectURL(p.previewUrl);
+});
 
 // ── Template picker ───────────────────────────────────────────────────────────
 const templatesResource = createResource({
@@ -335,6 +374,8 @@ const sendResource = createResource({
     messageText.value = "";
     selectedTemplate.value = null;
     attachments.value = [];
+    for (const p of pendingFiles.value) URL.revokeObjectURL(p.previewUrl);
+    pendingFiles.value = [];
     showTemplates.value = false;
     emit("sent");
     toast.success(__("Message sent."));
@@ -350,9 +391,23 @@ const sendResource = createResource({
   },
 });
 
-function sendMessage() {
-  if (!messageText.value.trim() && !attachments.value.length) return;
+async function sendMessage() {
+  if (!messageText.value.trim() && !attachments.value.length && !pendingFiles.value.length) return;
   sending.value = true;
+  // Upload pasted files before submit, consuming each on success so a mid-list
+  // failure keeps only the not-yet-uploaded previews — retry never double-uploads.
+  try {
+    while (pendingFiles.value.length) {
+      const p = pendingFiles.value[0];
+      attachments.value.push(await uploadFunction(p.file, "HD Ticket", props.ticketId, !!props.capabilities.media_private));
+      URL.revokeObjectURL(p.previewUrl);
+      pendingFiles.value.shift();
+    }
+  } catch (err: any) {
+    sending.value = false;
+    toast.error(err?.message || __("Upload failed"));
+    return;
+  }
   sendResource.submit({
     channel: props.channel,
     conversation: props.conversation.name,
