@@ -95,6 +95,7 @@
                 :activities="filterActivities(tab.name)"
                 :title="tab.label"
                 :ticket-status="ticket.doc?.status"
+                :typing-label="typingLabelFor(tab.name)"
                 @update="() => reloadTicket(props.ticketId)"
                 @email:reply="
                   (e) => {
@@ -113,11 +114,19 @@
             :cc-emails="[]"
             :bcc-emails="[]"
             :key="ticket.doc?.name"
+            :channel-threads="channelThreads"
             @update="
               () => {
                 reloadTicket(props.ticketId);
                 tabIndex !== 0 &&
                   ticketAgentActivitiesRef?.scrollToLatestActivity();
+              }
+            "
+            @channel-sent="
+              (channel) => {
+                reloadChannelThread(channel, tid.value);
+                reloadTicket(props.ticketId);
+                ticketAgentActivitiesRef?.scrollToLatestActivity();
               }
             "
           />
@@ -217,7 +226,14 @@ import {
   revalidateTicket,
   useTicket,
 } from "@/composables/useTicket";
+import {
+  reloadChannelThread,
+  revalidateChannelThreads,
+  setChannelTyping,
+  useChannelThread,
+} from "@/composables/useChannelThread";
 import { globalStore } from "@/stores/globalStore";
+import { useChannelsStore } from "@/stores/channels";
 import { getMeta } from "@/stores/meta";
 import { useTelephonyStore } from "@/stores/telephony";
 import { useTicketStatusStore } from "@/stores/ticketStatus";
@@ -245,7 +261,10 @@ const { isCallingEnabled } = storeToRefs(telephonyStore);
 const ticketStatusStore = useTicketStatusStore();
 const { getUser } = useUserStore();
 const router = useRouter();
-const { $dialog } = globalStore();
+const { $dialog, $socket } = globalStore();
+
+const channelsStore = useChannelsStore();
+const { channels } = storeToRefs(channelsStore);
 
 const ticketAgentActivitiesRef = ref<InstanceType<
   typeof TicketAgentActivities
@@ -272,6 +291,27 @@ const ticket = computed(() => ticketComposable.value.ticket);
 const assignees = computed(() => ticketComposable.value.assignees);
 const contact = computed(() => ticketComposable.value.contact);
 const activities = computed(() => ticketComposable.value.activities);
+
+// Normalize ticketId to string — prop may arrive as number; thread map is keyed on strings.
+const tid = computed(() => String(props.ticketId));
+
+// One feature-detected thread per manifest channel (mirrors TicketActivityPanel.vue:107-112).
+const channelThreads = computed(() =>
+  channels.value.map((ch) => ({
+    ...ch,
+    thread: useChannelThread(ch.channel_key, tid.value),
+  }))
+);
+
+// First inbound channel message — used to dedup the description email
+// (mirrors TicketActivityPanel.vue:159-165).
+const firstChannelInbound = computed(() =>
+  channelThreads.value
+    .flatMap((ch) =>
+      ch.thread.conversation.value !== null ? ch.thread.messages.value ?? [] : []
+    )
+    .find((m: any) => m.type === "Incoming")
+);
 
 const customizations: Resource<Customizations> = createResource({
   url: "helpdesk.helpdesk.doctype.hd_ticket.api.get_ticket_customizations",
@@ -479,8 +519,18 @@ const _activities = computed(() => {
     return [];
   }
 
-  const emailProps = activities.value.data.communications.map(
-    (email, idx: number) => {
+  const emailProps = activities.value.data.communications
+    .filter((email: any) => email.communication_medium !== "Chat")
+    .filter((email: any, idx: number) => {
+      // Skip description-dup: first email whose stripped content matches first inbound channel message.
+      if (idx !== 0) return true;
+      const firstInbound = firstChannelInbound.value;
+      if (!firstInbound?.message) return true;
+      const emailText = (email.content || "").replace(/<[^>]+>/g, "").trim();
+      return emailText !== firstInbound.message.trim();
+    })
+    .map(
+    (email: any, idx: number) => {
       return {
         subject: email.subject,
         content: email.content,
@@ -546,11 +596,27 @@ const _activities = computed(() => {
     };
   });
 
+  // Channel messages merged into the unified feed (mirrors TicketActivityPanel.vue:260-272).
+  const channelProps = channelThreads.value.flatMap((ch) =>
+    (ch.thread.conversation.value !== null ? ch.thread.messages.value ?? [] : []).map(
+      (m: any) => ({
+        type: "channel",
+        channel: ch.channel_key,
+        key: `${ch.channel_key}-${m.name}`,
+        creation: m.creation,
+        content: m.message || "",
+        channelMessage: m,
+        capabilities: ch.capabilities,
+      })
+    )
+  );
+
   const sorted = [
     ...emailProps,
     ...commentProps,
     ...historyProps,
     ...callProps,
+    ...channelProps,
   ].sort(
     (a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime()
   );
@@ -606,6 +672,20 @@ const _activities = computed(() => {
   return data;
 });
 
+function typingLabelFor(tabName: string): string {
+  // Unified activity tab shows any typing channel (mirrors TicketActivityPanel.vue:336-348).
+  const ch = channelThreads.value.find(
+    (c) =>
+      tabName === "activity" &&
+      c.capabilities?.typing &&
+      c.thread.typing?.value &&
+      c.thread.conversation.value
+  );
+  if (!ch) return "";
+  const name = ch.thread.conversation.value.profile_name || "Customer";
+  return `${name} is typing`;
+}
+
 function filterActivities(eventType: TicketTab) {
   if (eventType === "activity") {
     return _activities.value;
@@ -615,13 +695,28 @@ function filterActivities(eventType: TicketTab) {
 
 onMounted(() => {
   document.title = props.ticketId;
-  // Revisiting a ticket: show the cached conversation immediately and refresh it
-  // in place (mobile has no live socket refresh to keep the cache current).
+  // Revisit: refresh cached channel threads; socket listener keeps the feed live.
   revalidateTicket(props.ticketId);
+  revalidateChannelThreads(tid.value);
+
+  $socket.on("hd_channel_event", (data: { channel: string; event: string; ticket: string | null; conversation: string | null }) => {
+    const thread = useChannelThread(data.channel, tid.value);
+    if (
+      data.ticket === tid.value ||
+      (data.conversation && thread.conversation.value?.name === data.conversation)
+    ) {
+      if (data.event === "typing") {
+        setChannelTyping(data.channel, tid.value);
+        return;
+      }
+      reloadChannelThread(data.channel, tid.value);
+    }
+  });
 });
 
 onUnmounted(() => {
   document.title = "Helpdesk";
+  $socket.off("hd_channel_event");
 });
 </script>
 <style scoped>
