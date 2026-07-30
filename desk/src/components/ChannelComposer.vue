@@ -28,6 +28,8 @@
           dir="auto"
           @input="onTyping"
           @paste="onPaste"
+          @keydown.ctrl.enter.capture.stop="sendMessage"
+          @keydown.meta.enter.capture.stop="sendMessage"
         />
 
         <!-- Attachments chips (media capability only) -->
@@ -202,6 +204,8 @@ import { removeAttachmentFromServer, uploadFunction } from "@/utils";
 import { Badge, Button, FeatherIcon, FileUploader, call, createResource, dayjsLocal, toast } from "frappe-ui";
 import { computed, nextTick, onUnmounted, ref } from "vue";
 import type { ChannelConversation } from "@/composables/useChannelThread";
+import { useDevice } from "@/composables";
+import { useScreenSize } from "@/composables/screen";
 
 const props = defineProps<{
   conversation: ChannelConversation;
@@ -213,6 +217,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(["discard", "sent"]);
+
+const { isMac } = useDevice();
+const { isMobileView } = useScreenSize();
 
 // When the channel has no session window (capability off), replies are always allowed.
 const windowOpen = computed(() =>
@@ -227,7 +234,9 @@ const attachments = ref<any[]>([]);
 const pendingFiles = ref<{ file: File; previewUrl: string }[]>([]);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
-const sendLabel = computed(() => `${__("Send via")} ${props.label}`);
+const sendLabel = computed(() =>
+  isMobileView.value ? __("Send") : isMac ? __("Send (⌘ + ⏎)") : __("Send (Ctrl + ⏎)")
+);
 const composerPlaceholder = computed(
   () => `${__("Type a")} ${props.label} ${__("message…")}`
 );
@@ -392,7 +401,7 @@ const sendResource = createResource({
 });
 
 async function sendMessage() {
-  if (!messageText.value.trim() && !attachments.value.length && !pendingFiles.value.length) return;
+  if (sending.value || (!messageText.value.trim() && !attachments.value.length && !pendingFiles.value.length)) return;
   sending.value = true;
   // Upload pasted files before submit, consuming each on success so a mid-list
   // failure keeps only the not-yet-uploaded previews — retry never double-uploads.
