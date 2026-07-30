@@ -355,6 +355,7 @@ function sendMessage() {
   sendResource.submit({
     channel: props.channel,
     conversation: props.conversation.name,
+    ticket: props.ticketId,
     message: messageText.value.trim() || undefined,
     attachments: attachments.value.length
       ? JSON.stringify(attachments.value.map((a) => a.file_url))
@@ -368,6 +369,7 @@ function sendTemplate() {
   sendResource.submit({
     channel: props.channel,
     conversation: props.conversation.name,
+    ticket: props.ticketId,
     template: selectedTemplate.value.value,
   });
 }

@@ -54,17 +54,31 @@ def list_templates(channel, language=None):
 @frappe.whitelist(methods=["POST"])
 @agent_only
 def send(channel, conversation, message=None, template=None, template_params=None,
-         attachments=None):
+         attachments=None, ticket=None):
     fn, entry = _adapter_fn(channel, "send")
     if attachments and not (entry.get("capabilities") or {}).get("media"):
         frappe.throw(_("This channel does not support media attachments."))
-    return fn(
+    result = fn(
         conversation,
         message=message,
         template=template,
         template_params=template_params,
         attachments=attachments,
     )
+    # Mirror the email path (hd_ticket.py on_communication_update ~1022-1030):
+    # stamp first_responded_on + last_agent_response so the response-SLA recomputes.
+    # save() is required (not db.set_value) — apply_sla only runs on the document save path.
+    # ticket is trusted agent input (@agent_only; agents already hold HD Ticket write).
+    # try/except: a stamp failure must not surface as "Failed to send" for a sent message.
+    if ticket and frappe.db.exists("HD Ticket", ticket):
+        try:
+            doc = frappe.get_doc("HD Ticket", ticket)
+            doc.first_responded_on = doc.first_responded_on or frappe.utils.now_datetime()
+            doc.last_agent_response = frappe.utils.now_datetime()
+            doc.save()   # save path → apply_sla → agreement_status recompute
+        except Exception:
+            frappe.log_error(title="channels.send: SLA stamp failed")
+    return result
 
 
 @frappe.whitelist(methods=["POST"])
