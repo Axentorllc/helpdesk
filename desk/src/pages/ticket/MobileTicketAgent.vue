@@ -196,6 +196,7 @@ import {
   PropType,
   provide,
   ref,
+  watch,
   watchEffect,
 } from "vue";
 
@@ -692,6 +693,14 @@ function filterActivities(eventType: TicketTab) {
   }
   return _activities.value.filter((activity) => activity.type === eventType);
 }
+
+// Auto-scroll when new channel messages arrive via socket reload.
+const channelMessageCount = computed(() =>
+  channelThreads.value.reduce((n, ch) => n + (ch.thread.messages.value?.length ?? 0), 0)
+);
+watch(channelMessageCount, (n, old) => {
+  if (n > old) ticketAgentActivitiesRef.value?.scrollToLatestActivity();
+});
 
 onMounted(() => {
   document.title = props.ticketId;

@@ -77,7 +77,7 @@ import {
 } from "@/types";
 import { Tabs } from "frappe-ui";
 import { storeToRefs } from "pinia";
-import { computed, ComputedRef, inject, ref } from "vue";
+import { computed, ComputedRef, inject, ref, watch } from "vue";
 import { TicketAgentActivities } from "../ticket";
 
 const ticket = inject(TicketSymbol);
@@ -346,6 +346,14 @@ function typingLabelFor(tabName: string): string {
   const name = ch.thread.conversation.value.profile_name || "Customer";
   return `${name} is typing`;
 }
+
+// Socket reload updates the feed reactively but never scrolls; this watch does.
+const channelMessageCount = computed(() =>
+  channelThreads.value.reduce((n, ch) => n + (ch.thread.messages.value?.length ?? 0), 0)
+);
+watch(channelMessageCount, (n, old) => {
+  if (n > old) ticketAgentActivitiesRef.value?.scrollToLatestActivity();
+});
 
 function filterActivities(eventType: TicketTab | string) {
   if (eventType === "activity") {
