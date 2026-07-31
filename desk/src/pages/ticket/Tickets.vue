@@ -145,6 +145,24 @@ const options = computed(() => ({
         );
       },
     },
+    _last_message: {
+      custom: ({ row }) => {
+        const lm = row._last_message;
+        if (!lm?.text) return h("span");
+        return h("div", { class: "flex items-center gap-1.5 min-w-0 flex-1" }, [
+          ...(lm.incoming
+            ? [h(IndicatorIcon, { class: "text-blue-500 shrink-0" })]
+            : []),
+          h(
+            "span",
+            {
+              class: ["truncate flex-1 text-base", lm.incoming && "font-semibold"],
+            },
+            lm.incoming ? lm.text : `${__("You")}: ${lm.text}`
+          ),
+        ]);
+      },
+    },
     status: {
       custom: ({ item }) => {
         const status = getStatus(item);
