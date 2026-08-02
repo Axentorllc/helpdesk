@@ -5,13 +5,15 @@ function helpdesk_handlers(socket) {
 
   socket.on("view_ticket", (ticket_id) => {
     if (!ticket_id) return;
-    const room = open_doc_room("HD Ticket", ticket_id);
-    socket.join(room);
+    socket.has_permission("HD Ticket", ticket_id).then(() => {
+      const room = open_doc_room("HD Ticket", ticket_id);
+      socket.join(room);
 
-    // Notify all viewers in this ticket room about the new viewer
-    notify_ticket_viewers({
-      socket: socket,
-      ticket_id: ticket_id,
+      // Notify all viewers in this ticket room about the new viewer
+      notify_ticket_viewers({
+        socket: socket,
+        ticket_id: ticket_id,
+      });
     });
   });
 
@@ -29,45 +31,53 @@ function helpdesk_handlers(socket) {
 
   socket.on("ticket_get_viewers", (ticket_id) => {
     if (!ticket_id) return;
-    // Send current viewers list to the requesting user only
-    notify_ticket_viewers({
-      socket: socket,
-      ticket_id: ticket_id,
-      toUser: true, // saying that whenever we ask for viewers, send only to the user who asked
+    socket.has_permission("HD Ticket", ticket_id).then(() => {
+      // Send current viewers list to the requesting user only
+      notify_ticket_viewers({
+        socket: socket,
+        ticket_id: ticket_id,
+        toUser: true, // saying that whenever we ask for viewers, send only to the user who asked
+      });
     });
   });
 
   socket.on("notify_ticket_update", (ticket_id, field, value) => {
     if (!(ticket_id && field)) return;
-    const ticket_room = open_doc_room("HD Ticket", ticket_id);
-    socket.to(ticket_room).emit("ticket_update", {
-      ticket_id,
-      user: socket.user,
-      field,
-      value,
+    socket.has_permission("HD Ticket", ticket_id).then(() => {
+      const ticket_room = open_doc_room("HD Ticket", ticket_id);
+      socket.to(ticket_room).emit("ticket_update", {
+        ticket_id,
+        user: socket.user,
+        field,
+        value,
+      });
     });
   });
 
   // Typing indicators
   socket.on("helpdesk_ticket_typing", (ticket_id) => {
     if (!ticket_id) return;
-    const ticket_room = open_doc_room("HD Ticket", ticket_id);
+    socket.has_permission("HD Ticket", ticket_id).then(() => {
+      const ticket_room = open_doc_room("HD Ticket", ticket_id);
 
-    // Broadcast to all other users in the ticket room that this user is typing
-    socket.to(ticket_room).emit("helpdesk_ticket_typing", {
-      ticket_id,
-      user: socket.user,
+      // Broadcast to all other users in the ticket room that this user is typing
+      socket.to(ticket_room).emit("helpdesk_ticket_typing", {
+        ticket_id,
+        user: socket.user,
+      });
     });
   });
 
   socket.on("helpdesk_ticket_typing_stopped", (ticket_id) => {
     if (!ticket_id) return;
-    const ticket_room = open_doc_room("HD Ticket", ticket_id);
+    socket.has_permission("HD Ticket", ticket_id).then(() => {
+      const ticket_room = open_doc_room("HD Ticket", ticket_id);
 
-    // Broadcast to all other users in the ticket room that this user stopped typing
-    socket.to(ticket_room).emit("helpdesk_ticket_typing_stopped", {
-      ticket_id,
-      user: socket.user,
+      // Broadcast to all other users in the ticket room that this user stopped typing
+      socket.to(ticket_room).emit("helpdesk_ticket_typing_stopped", {
+        ticket_id,
+        user: socket.user,
+      });
     });
   });
 }
