@@ -1,47 +1,7 @@
+import { useSocketEvent } from "@/composables/useSocketEvent";
 import { useAuthStore } from "@/stores/auth";
 import { globalStore } from "@/stores/globalStore";
 import { reactive, ref, watch } from "vue";
-
-const currentViewers = reactive<Record<string, string[]> | null>({});
-
-export function useActiveViewers(ticketId: string) {
-  const { $socket } = globalStore();
-
-  const { userId } = useAuthStore();
-  $socket.on("ticket_viewers", (data: { ticket_id: string; users: string }) => {
-    if (data.ticket_id === ticketId) {
-      const viewers = JSON.parse(data.users).filter(
-        (u: string) => u !== userId
-      );
-      currentViewers[ticketId] = viewers;
-    }
-  });
-
-  // One stable handler per composable so add/remove pair up — startViewing runs on
-  // every socket reconnect, and a fresh arrow each time would leak a listener.
-  let unloadTicketId: string | null = null;
-  const handleBeforeUnload = () => {
-    if (unloadTicketId) $socket.emit("stop_view_ticket", unloadTicketId);
-  };
-  const startViewing = (_ticketId: string) => {
-    $socket.emit("view_ticket", _ticketId);
-    unloadTicketId = _ticketId;
-    window.removeEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-  };
-
-  const stopViewing = (_ticketId: string) => {
-    $socket.emit("stop_view_ticket", _ticketId);
-    unloadTicketId = null;
-    window.removeEventListener("beforeunload", handleBeforeUnload);
-  };
-
-  return {
-    currentViewers,
-    startViewing,
-    stopViewing,
-  };
-}
 
 export function useNotifyTicketUpdate(ticketId: string) {
   const { $socket } = globalStore();
@@ -61,8 +21,9 @@ export function useTyping(ticketId: string) {
   const typingUsers = reactive<string[]>([]);
   let timeout: any = null;
 
-  // Listen for typing events from other users
-  $socket.on(
+  // Listen for typing events from other users. Named handlers via useSocketEvent so
+  // one editor unmounting no longer clobbers the others' typing listeners.
+  useSocketEvent(
     "helpdesk_ticket_typing",
     (data: { ticket_id: string; user: string }) => {
       if (data.ticket_id === ticketId && data.user !== userId) {
@@ -75,7 +36,7 @@ export function useTyping(ticketId: string) {
   );
 
   // Listen for typing stopped events
-  $socket.on(
+  useSocketEvent(
     "helpdesk_ticket_typing_stopped",
     (data: { ticket_id: string; user: string }) => {
       if (data.ticket_id === ticketId) {
@@ -134,9 +95,7 @@ export function useTyping(ticketId: string) {
     if (timeout) {
       clearTimeout(timeout);
     }
-    // Remove socket listeners
-    $socket.off("helpdesk_ticket_typing");
-    $socket.off("helpdesk_ticket_typing_stopped");
+    // Socket listeners are removed by useSocketEvent's onScopeDispose.
   };
 
   return {

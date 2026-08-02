@@ -230,9 +230,9 @@ import {
 import {
   reloadChannelThread,
   revalidateChannelThreads,
-  setChannelTyping,
   useChannelThread,
 } from "@/composables/useChannelThread";
+import { useRealtimeTicket } from "@/composables/useRealtimeTicket";
 import { globalStore } from "@/stores/globalStore";
 import { useChannelsStore } from "@/stores/channels";
 import { getMeta } from "@/stores/meta";
@@ -262,7 +262,7 @@ const { isCallingEnabled } = storeToRefs(telephonyStore);
 const ticketStatusStore = useTicketStatusStore();
 const { getUser } = useUserStore();
 const router = useRouter();
-const { $dialog, $socket } = globalStore();
+const { $dialog } = globalStore();
 
 const channelsStore = useChannelsStore();
 const { channels } = storeToRefs(channelsStore);
@@ -702,37 +702,28 @@ watch(channelMessageCount, (n, old) => {
   if (n > old) ticketAgentActivitiesRef.value?.scrollToLatestActivity();
 });
 
+const revalidateAll = () => {
+  revalidateTicket(props.ticketId);
+  revalidateChannelThreads(tid.value);
+};
+
+// Joins the ticket room (mobile previously never did — it heard no room events) and
+// keeps the feed live on reconnect / update / comment / channel events.
+useRealtimeTicket(tid, {
+  onReconnect: revalidateAll,
+  onTicketUpdate: () => reloadTicket(props.ticketId),
+  onTicketComment: () => activities.value.reload(),
+  channelEvents: true,
+});
+
 onMounted(() => {
   document.title = props.ticketId;
   // Revisit: refresh cached channel threads; socket listener keeps the feed live.
-  revalidateTicket(props.ticketId);
-  revalidateChannelThreads(tid.value);
-
-  // socket.io reconnects lose server-side state; refresh anything missed while disconnected.
-  $socket.on("connect", () => {
-    revalidateTicket(props.ticketId);
-    revalidateChannelThreads(tid.value);
-  });
-
-  $socket.on("hd_channel_event", (data: { channel: string; event: string; ticket: string | null; conversation: string | null }) => {
-    const thread = useChannelThread(data.channel, tid.value);
-    if (
-      data.ticket === tid.value ||
-      (data.conversation && thread.conversation.value?.name === data.conversation)
-    ) {
-      if (data.event === "typing") {
-        setChannelTyping(data.channel, tid.value);
-        return;
-      }
-      reloadChannelThread(data.channel, tid.value);
-    }
-  });
+  revalidateAll();
 });
 
 onUnmounted(() => {
   document.title = "Helpdesk";
-  $socket.off("connect");
-  $socket.off("hd_channel_event");
 });
 </script>
 <style scoped>

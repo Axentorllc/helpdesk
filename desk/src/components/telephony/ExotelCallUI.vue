@@ -89,11 +89,11 @@
   </div>
 </template>
 <script setup lang="ts">
-import { globalStore } from "@/stores/globalStore";
+import { useSocketEvent } from "@/composables/useSocketEvent";
 import { useTelephonyStore } from "@/stores/telephony";
 import { useDraggable, useWindowSize } from "@vueuse/core";
 import { Avatar, Button, call, toast } from "frappe-ui";
-import { inject, onBeforeUnmount, ref, watch } from "vue";
+import { inject, ref, watch } from "vue";
 import CountUpTimer from "./CountUpTimer.vue";
 import AvatarIcon from "./Icons/AvatarIcon.vue";
 import MinimizeIcon from "./Icons/MinimizeIcon.vue";
@@ -113,7 +113,6 @@ const onCallFailed = inject<(() => void) | undefined>(
 const callPopupHeader = ref(null);
 const showCallPopup = ref(false);
 let showSmallCallPopup = ref(false);
-const { $socket } = globalStore();
 function toggleCallPopup() {
   showCallPopup.value = !showCallPopup.value;
   if (showSmallCallPopup.value == undefined) {
@@ -178,28 +177,29 @@ function makeOutgoingCall(number) {
     });
 }
 
-function setup(userEmail) {
-  $socket.on("exotel_call", (data) => {
-    callData.value = data;
+// Registered at synchronous setup so onScopeDispose can clean it up; setup() (called
+// from a parent watcher, outside any effect scope) only feeds in the agent email.
+const agentEmail = ref("");
+useSocketEvent("exotel_call", (data) => {
+  callData.value = data;
 
-    callStatus.value = updateStatus(data);
+  callStatus.value = updateStatus(data);
 
-    if (!showCallPopup.value && !showSmallCallPopup.value) {
-      if (data.AgentEmail && data.AgentEmail == userEmail) {
-        // Incoming call
-        phoneNumber.value = data.CallFrom || data.From;
-        showCallPopup.value = true;
-      } else {
-        // Outgoing call
-        phoneNumber.value = data.To;
-      }
+  if (!showCallPopup.value && !showSmallCallPopup.value) {
+    if (data.AgentEmail && data.AgentEmail == agentEmail.value) {
+      // Incoming call
+      phoneNumber.value = data.CallFrom || data.From;
+      showCallPopup.value = true;
+    } else {
+      // Outgoing call
+      phoneNumber.value = data.To;
     }
-  });
-}
-
-onBeforeUnmount(() => {
-  $socket.off("exotel_call");
+  }
 });
+
+function setup(userEmail) {
+  agentEmail.value = userEmail;
+}
 
 function closeCallPopup() {
   showCallPopup.value = false;

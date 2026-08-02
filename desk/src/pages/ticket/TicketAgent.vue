@@ -53,20 +53,14 @@ import TicketActivityPanel from "@/components/ticket-agent/TicketActivityPanel.v
 import TicketHeader from "@/components/ticket-agent/TicketHeader.vue";
 import TicketSidebar from "@/components/ticket-agent/TicketSidebar.vue";
 import SetContactPhoneModal from "@/components/ticket/SetContactPhoneModal.vue";
-import { useActiveViewers } from "@/composables/realtime";
+import { useRealtimeTicket } from "@/composables/useRealtimeTicket";
 import {
   reloadTicket,
   revalidateTicket,
   useTicket,
 } from "@/composables/useTicket";
-import {
-  reloadChannelThread,
-  revalidateChannelThreads,
-  setChannelTyping,
-  useChannelThread,
-} from "@/composables/useChannelThread";
+import { revalidateChannelThreads } from "@/composables/useChannelThread";
 import { ticketsToNavigate } from "@/composables/useTicketNavigation";
-import { globalStore } from "@/stores/globalStore";
 import { useTelephonyStore } from "@/stores/telephony";
 import {
   ActivitiesSymbol,
@@ -89,8 +83,6 @@ import { useRoute } from "vue-router";
 import { showCommentBox, showEmailBox } from "./modalStates";
 
 const telephonyStore = useTelephonyStore();
-
-const { $socket } = globalStore();
 
 const props = defineProps({
   ticketId: {
@@ -150,43 +142,36 @@ provide("makeCall", () => {
 provide("refreshTicket", () => reloadTicket(props.ticketId));
 provide("onCallEnded", () => reloadTicket(props.ticketId));
 
-const viewerComposable = computed(() => useActiveViewers(ticket.value.name));
-const viewers = computed(
-  () => viewerComposable.value.currentViewers[props.ticketId] || []
-);
-const { startViewing, stopViewing } = viewerComposable.value;
+const ticketIdRef = computed(() => props.ticketId);
 
-// handling for faster navigation between tickets
-watch(
-  () => route.params.ticketId,
-  (newTicketId, oldTicketId) => {
-    if (newTicketId === oldTicketId) return;
-
-    if (oldTicketId) stopViewing(oldTicketId as string);
-    startViewing(newTicketId as string);
-
-    // Switching to an already-visited ticket: show its cached conversation and
-    // refresh it in the background in case it changed while we were elsewhere.
-    if (oldTicketId) {
-      revalidateTicket(newTicketId as string);
-      revalidateChannelThreads(newTicketId as string);
-    }
-  },
-  { immediate: true }
-);
-
-type TicketUpdateData = {
-  ticket_id: string;
-  user: string;
-  field: string;
-  value: string;
+const revalidateAll = () => {
+  revalidateTicket(props.ticketId);
+  revalidateChannelThreads(props.ticketId);
 };
+
+const { viewers } = useRealtimeTicket(ticketIdRef, {
+  onReconnect: revalidateAll,
+  onTicketUpdate: () => reloadTicket(props.ticketId),
+  onTicketComment: () => ticketComposable.value.activities.reload(),
+  onFieldNudge: (data) =>
+    toast.info(`User ${data.user} updated ${data.field} to ${data.value}`),
+  channelEvents: true,
+  viewers: true,
+});
+
+// Switching to an already-visited ticket: show its cached conversation and refresh
+// it in the background in case it changed while we were elsewhere.
+watch(
+  () => props.ticketId,
+  (newId, oldId) => {
+    if (oldId && newId !== oldId) revalidateAll();
+  }
+);
 
 onMounted(() => {
   // Revisiting a ticket: show the cached conversation immediately and refresh it
   // in place, since a reply may have arrived while the socket listener was off.
-  revalidateTicket(props.ticketId);
-  revalidateChannelThreads(props.ticketId);
+  revalidateAll();
 
   ticketsToNavigate.update({
     params: {
@@ -196,60 +181,11 @@ onMounted(() => {
   });
   ticketsToNavigate.reload();
   ticket.value.markSeen.reload();
-
-  // socket.io rooms are server-side state lost on reconnect; re-join and refresh anything missed.
-  $socket.on("connect", () => {
-    startViewing(props.ticketId);
-    revalidateTicket(props.ticketId);
-    revalidateChannelThreads(props.ticketId);
-  });
-
-  $socket.on("ticket_update", (data: TicketUpdateData) => {
-    if (data.ticket_id === ticket.value?.name) {
-      // Notify the user about the update
-      toast.info(`User ${data.user} updated ${data.field} to ${data.value}`);
-    }
-  });
-
-  $socket.on("helpdesk:ticket-comment", (data: { ticket_id: string }) => {
-    if (data.ticket_id == props.ticketId) {
-      ticketComposable.value.activities.reload();
-    }
-  });
-
-  $socket.on("helpdesk:ticket-update", (data: { ticket_id: string }) => {
-    if (data.ticket_id == props.ticketId) {
-      reloadTicket(props.ticketId);
-    }
-  });
-
-  // Channel realtime: one generic event for any plugged-in channel (message, status, typing).
-  // Carries ticket context, so we target this ticket precisely instead of a blanket reload.
-  $socket.on("hd_channel_event", (data: { channel: string; event: string; ticket: string | null; conversation: string | null }) => {
-    const thread = useChannelThread(data.channel, props.ticketId);
-    if (
-      data.ticket === props.ticketId ||
-      (data.conversation && thread.conversation.value?.name === data.conversation)
-    ) {
-      if (data.event === "typing") {
-        setChannelTyping(data.channel, props.ticketId);
-        return;
-      }
-      reloadChannelThread(data.channel, props.ticketId);
-    }
-  });
 });
 
 onBeforeUnmount(() => {
-  stopViewing(props.ticketId);
   showEmailBox.value = false;
   showCommentBox.value = false;
-
-  $socket.off("connect");
-  $socket.off("ticket_update");
-  $socket.off("helpdesk:ticket-comment");
-  $socket.off("helpdesk:ticket-update");
-  $socket.off("hd_channel_event");
 });
 usePageMeta(() => {
   if (!ticket.value?.doc?.name) {

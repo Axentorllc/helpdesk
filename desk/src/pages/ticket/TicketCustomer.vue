@@ -97,7 +97,7 @@
 import { LayoutHeader } from "@/components";
 import TicketCustomerSidebar from "@/components/ticket/TicketCustomerSidebar.vue";
 import { setupCustomizations } from "@/composables/formCustomisation";
-import { useActiveViewers } from "@/composables/realtime";
+import { useRealtimeTicket } from "@/composables/useRealtimeTicket";
 import { useScreenSize } from "@/composables/screen";
 import { useConfigStore } from "@/stores/config";
 import { globalStore } from "@/stores/globalStore";
@@ -174,7 +174,7 @@ const showFeedbackDialog = ref(false);
 const isExpanded = ref(false);
 
 const { isMobileView } = useScreenSize();
-const { $dialog, $socket } = globalStore();
+const { $dialog } = globalStore();
 const isDismissed = ref(false);
 
 const activeTab = ref(0);
@@ -369,29 +369,16 @@ const showFeedback = computed(() => {
   );
   return hasAgentCommunication && isFeedbackMandatory;
 });
-const { startViewing, stopViewing } = useActiveViewers(props.ticketId);
+useRealtimeTicket(computed(() => props.ticketId), {
+  onReconnect: () => ticket.reload(),
+  onTicketUpdate: () => ticket.reload(),
+});
 
 onMounted(() => {
-  startViewing(props.ticketId);
   document.title = props.ticketId;
-
-  // socket.io rooms are server-side state lost on reconnect; re-join and reload on every connect.
-  $socket.on("connect", () => {
-    startViewing(props.ticketId);
-    ticket.reload();
-  });
-
-  $socket.on("helpdesk:ticket-update", ({ ticket_id }) => {
-    if (ticket_id == props.ticketId) {
-      ticket.reload();
-    }
-  });
 });
 
 onUnmounted(() => {
-  stopViewing(props.ticketId);
   document.title = "Helpdesk";
-  $socket.off("connect");
-  $socket.off("helpdesk:ticket-update");
 });
 </script>
