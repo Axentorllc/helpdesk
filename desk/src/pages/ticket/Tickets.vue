@@ -68,6 +68,7 @@ import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
 import { normalizeFilters } from "@/components/view-controls/filter";
 import ViewModal from "@/components/ViewModal.vue";
+import { useSocketEvent } from "@/composables/useSocketEvent";
 import { currentView, useView } from "@/composables/useView";
 import { useAuthStore } from "@/stores/auth";
 import { globalStore } from "@/stores/globalStore";
@@ -76,7 +77,7 @@ import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
 import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
-import { computed, h, onMounted, onUnmounted, reactive, ref } from "vue";
+import { computed, h, onMounted, onScopeDispose, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const router = useRouter();
@@ -446,23 +447,28 @@ function onViewModalUpdate(viewInfo: any, action: string) {
   handleView(viewInfo, action, viewDialogConfig, () => listViewRef.value?.list);
 }
 
+if (!isCustomerPortal.value) {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedReload = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => listViewRef.value?.reload(), 500);
+  };
+
+  useSocketEvent("helpdesk:new-ticket", () => listViewRef.value?.reload());
+  $socket.emit("doctype_subscribe", "HD Ticket");
+  useSocketEvent("connect", () => $socket.emit("doctype_subscribe", "HD Ticket"));
+  useSocketEvent("list_update", (data: { doctype?: string }) => {
+    if (data?.doctype === "HD Ticket") debouncedReload();
+  });
+  onScopeDispose(() => $socket.emit("doctype_unsubscribe", "HD Ticket"));
+}
+
 onMounted(() => {
   if (!route.query.view) {
     currentView.value = {
       label: __("List"),
       icon: LucideAlignJustify,
     };
-  }
-  if (!isCustomerPortal.value) {
-    $socket.on("helpdesk:new-ticket", () => {
-      listViewRef.value?.reload();
-    });
-  }
-});
-
-onUnmounted(() => {
-  if (!isCustomerPortal.value) {
-    $socket.off("helpdesk:new-ticket");
   }
 });
 
