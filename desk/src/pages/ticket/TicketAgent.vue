@@ -197,6 +197,13 @@ onMounted(() => {
   ticketsToNavigate.reload();
   ticket.value.markSeen.reload();
 
+  // socket.io rooms are server-side state lost on reconnect; re-join and refresh anything missed.
+  $socket.on("connect", () => {
+    startViewing(props.ticketId);
+    revalidateTicket(props.ticketId);
+    revalidateChannelThreads(props.ticketId);
+  });
+
   $socket.on("ticket_update", (data: TicketUpdateData) => {
     if (data.ticket_id === ticket.value?.name) {
       // Notify the user about the update
@@ -238,6 +245,7 @@ onBeforeUnmount(() => {
   showEmailBox.value = false;
   showCommentBox.value = false;
 
+  $socket.off("connect");
   $socket.off("ticket_update");
   $socket.off("helpdesk:ticket-comment");
   $socket.off("helpdesk:ticket-update");

@@ -375,6 +375,12 @@ onMounted(() => {
   startViewing(props.ticketId);
   document.title = props.ticketId;
 
+  // socket.io rooms are server-side state lost on reconnect; re-join and reload on every connect.
+  $socket.on("connect", () => {
+    startViewing(props.ticketId);
+    ticket.reload();
+  });
+
   $socket.on("helpdesk:ticket-update", ({ ticket_id }) => {
     if (ticket_id == props.ticketId) {
       ticket.reload();
@@ -385,6 +391,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopViewing(props.ticketId);
   document.title = "Helpdesk";
+  $socket.off("connect");
   $socket.off("helpdesk:ticket-update");
 });
 </script>
