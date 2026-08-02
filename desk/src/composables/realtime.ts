@@ -17,22 +17,23 @@ export function useActiveViewers(ticketId: string) {
     }
   });
 
-  const handleBeforeUnload = (_ticketId: string) => {
-    $socket.emit("stop_view_ticket", _ticketId);
+  // One stable handler per composable so add/remove pair up — startViewing runs on
+  // every socket reconnect, and a fresh arrow each time would leak a listener.
+  let unloadTicketId: string | null = null;
+  const handleBeforeUnload = () => {
+    if (unloadTicketId) $socket.emit("stop_view_ticket", unloadTicketId);
   };
   const startViewing = (_ticketId: string) => {
     $socket.emit("view_ticket", _ticketId);
-    window.addEventListener("beforeunload", () =>
-      handleBeforeUnload(_ticketId)
-    );
+    unloadTicketId = _ticketId;
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
   };
 
   const stopViewing = (_ticketId: string) => {
     $socket.emit("stop_view_ticket", _ticketId);
-
-    window.removeEventListener("beforeunload", () =>
-      handleBeforeUnload(_ticketId)
-    );
+    unloadTicketId = null;
+    window.removeEventListener("beforeunload", handleBeforeUnload);
   };
 
   return {

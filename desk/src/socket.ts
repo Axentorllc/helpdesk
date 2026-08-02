@@ -19,18 +19,23 @@ export function initSocket() {
   let protocol = port ? "http" : "https";
   let url = `${protocol}://${host}${port}/${siteName}`;
 
-  _socket = io(url, {
+  const s = io(url, {
     withCredentials: true,
+  });
+  _socket = s;
+
+  // socket.io does not auto-retry after "io server disconnect" (graceful server
+  // shutdown, e.g. a deploy restart); kick the reconnect loop ourselves.
+  s.on("disconnect", (reason) => {
+    if (reason === "io server disconnect") s.connect();
   });
 
   // Nudge reconnect when tab becomes visible after a background sleep/wake.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && _socket && !_socket.connected) {
-      _socket.connect();
+    if (document.visibilityState === "visible" && !s.connected) {
+      s.connect();
     }
   });
 
-  return _socket;
+  return s;
 }
-
-export const socket = initSocket();

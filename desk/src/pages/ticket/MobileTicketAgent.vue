@@ -708,6 +708,12 @@ onMounted(() => {
   revalidateTicket(props.ticketId);
   revalidateChannelThreads(tid.value);
 
+  // socket.io reconnects lose server-side state; refresh anything missed while disconnected.
+  $socket.on("connect", () => {
+    revalidateTicket(props.ticketId);
+    revalidateChannelThreads(tid.value);
+  });
+
   $socket.on("hd_channel_event", (data: { channel: string; event: string; ticket: string | null; conversation: string | null }) => {
     const thread = useChannelThread(data.channel, tid.value);
     if (
@@ -725,6 +731,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.title = "Helpdesk";
+  $socket.off("connect");
   $socket.off("hd_channel_event");
 });
 </script>
