@@ -1,6 +1,6 @@
 <template>
-  <!-- Teleport to App Header -->
-  <teleport to="#app-header">
+  <!-- Teleport to App Header (disabled in split view: renders inline in the pane) -->
+  <teleport to="#app-header" :disabled="inline">
     <div
       class="flex items-center mx-5 md:mr-0 text-p-sm gap-3 text-[14px] mb-[13px]"
     >
@@ -101,6 +101,13 @@ import {
 } from "@/utils";
 import { Badge, dayjs, Tooltip } from "frappe-ui";
 import { computed, inject } from "vue";
+
+defineProps({
+  inline: {
+    type: Boolean,
+    default: false,
+  },
+});
 
 const ticket = inject(TicketSymbol)!;
 

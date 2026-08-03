@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="isCustomerPortal ? '' : 'flex flex-1 flex-col overflow-hidden'">
     <LayoutHeader>
       <template #left-header>
         <ViewBreadcrumbs
@@ -11,6 +11,13 @@
         />
       </template>
       <template #right-header>
+        <!-- Layout switcher (agent desktop only) -->
+        <TabButtons
+          v-if="!isCustomerPortal"
+          :model-value="splitView ? 'split' : 'classic'"
+          :buttons="layoutTabs"
+          @update:model-value="onLayoutChange"
+        />
         <RouterLink
           class="inline-flex"
           :to="{ name: isCustomerPortal ? 'TicketNew' : 'TicketAgentNew' }"
@@ -28,13 +35,39 @@
         </RouterLink>
       </template>
     </LayoutHeader>
+    <!-- Agent: list pane beside the detail child (split) or hidden behind it
+         (classic). Customer portal keeps today's single-list render. -->
+    <div v-if="!isCustomerPortal" class="flex flex-1 overflow-hidden">
+      <div
+        v-show="splitView || !hasTicketOpen"
+        :class="
+          splitView && hasTicketOpen
+            ? 'w-[420px] shrink-0 border-r overflow-hidden flex flex-col'
+            : 'flex flex-1 flex-col overflow-hidden'
+        "
+      >
+        <ListViewBuilder
+          ref="listViewRef"
+          :options="options"
+          @row-click="
+            (row) =>
+              $router.push({
+                name: 'TicketAgent',
+                params: { ticketId: row },
+              })
+          "
+        />
+      </div>
+      <RouterView class="flex flex-1 flex-col overflow-hidden" />
+    </div>
     <ListViewBuilder
+      v-else
       ref="listViewRef"
       :options="options"
       @row-click="
         (row) =>
           $router.push({
-            name: isCustomerPortal ? 'TicketCustomer' : 'TicketAgent',
+            name: 'TicketCustomer',
             params: { ticketId: row },
           })
       "
@@ -68,6 +101,7 @@ import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
 import { normalizeFilters } from "@/components/view-controls/filter";
 import ViewModal from "@/components/ViewModal.vue";
+import { useLayoutPreference } from "@/composables/useLayoutPreference";
 import { useSocketEvent } from "@/composables/useSocketEvent";
 import { currentView, useView } from "@/composables/useView";
 import { useAuthStore } from "@/stores/auth";
@@ -76,12 +110,25 @@ import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
-import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
+import { Badge, dayjs, TabButtons, Tooltip, usePageMeta } from "frappe-ui";
 import { computed, h, onMounted, onScopeDispose, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import LucideAlignJustify from "~icons/lucide/align-justify";
+import LucidePanelRight from "~icons/lucide/panel-right";
 
 const router = useRouter();
 const route = useRoute();
+
+const { splitView, toggle: toggleLayout } = useLayoutPreference();
+// A ticket detail child is active (nested route on desktop agent).
+const hasTicketOpen = computed(() => route.name === "TicketAgent");
+const layoutTabs = [
+  { label: __("List view"), value: "classic", icon: LucideAlignJustify, hideLabel: true },
+  { label: __("Split view"), value: "split", icon: LucidePanelRight, hideLabel: true },
+];
+function onLayoutChange(value: string) {
+  if ((value === "split") !== splitView.value) toggleLayout();
+}
 
 const {
   getCurrentUserViews,
@@ -473,6 +520,9 @@ onMounted(() => {
 });
 
 usePageMeta(() => {
+  // Depend on route.name so closing the detail pane (name flips back to the list)
+  // re-applies the list title instead of leaving the ticket's.
+  route.name;
   return {
     title: __("Tickets"),
   };

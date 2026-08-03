@@ -78,7 +78,7 @@ import {
   toast,
   usePageMeta,
 } from "frappe-ui";
-import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
+import { computed, onBeforeUnmount, provide, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { showCommentBox, showEmailBox } from "./modalStates";
 
@@ -159,29 +159,25 @@ const { viewers } = useRealtimeTicket(ticketIdRef, {
   viewers: true,
 });
 
-// Switching to an already-visited ticket: show its cached conversation and refresh
-// it in the background in case it changed while we were elsewhere.
+// Runs on mount AND on every ticketId change (the detail component is reused across
+// tickets under the nested route, so this can't live in onMounted). Revisiting a
+// ticket shows its cached conversation immediately and refreshes it in place, since
+// a reply may have arrived while the socket listener was off.
 watch(
   () => props.ticketId,
-  (newId, oldId) => {
-    if (oldId && newId !== oldId) revalidateAll();
-  }
+  () => {
+    revalidateAll();
+    ticketsToNavigate.update({
+      params: {
+        ticket: props.ticketId,
+        current_view: route.query.view as string,
+      },
+    });
+    ticketsToNavigate.reload();
+    ticket.value.markSeen.reload();
+  },
+  { immediate: true }
 );
-
-onMounted(() => {
-  // Revisiting a ticket: show the cached conversation immediately and refresh it
-  // in place, since a reply may have arrived while the socket listener was off.
-  revalidateAll();
-
-  ticketsToNavigate.update({
-    params: {
-      ticket: props.ticketId,
-      current_view: route.query.view as string,
-    },
-  });
-  ticketsToNavigate.reload();
-  ticket.value.markSeen.reload();
-});
 
 onBeforeUnmount(() => {
   showEmailBox.value = false;

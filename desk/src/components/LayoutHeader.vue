@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="#app-header" v-if="showHeader">
+  <Teleport to="#app-header" :disabled="inline" v-if="showHeader">
     <slot>
       <header
         class="flex h-10.5 items-center justify-between mx-4 md:mx-5 md:mr-0"
@@ -16,6 +16,16 @@
 </template>
 <script setup>
 import { nextTick, ref } from "vue";
+
+// When `inline`, render in place instead of teleporting to the global #app-header
+// (split view keeps the header inside the ticket pane).
+defineProps({
+  inline: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const showHeader = ref(false);
 
 nextTick(() => {

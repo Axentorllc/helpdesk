@@ -1,5 +1,5 @@
 <template>
-  <LayoutHeader>
+  <LayoutHeader :inline="splitView">
     <template #left-header>
       <div class="flex flex-col truncate">
         <Breadcrumbs :items="breadcrumbs" class="breadcrumbs -ml-0.5">
@@ -11,7 +11,7 @@
             />
           </template>
         </Breadcrumbs>
-        <TicketSLA />
+        <TicketSLA :inline="splitView" />
       </div>
     </template>
     <template #right-header>
@@ -84,6 +84,7 @@ import { MultipleAvatar } from "@/components";
 import LayoutHeader from "@/components/LayoutHeader.vue";
 import TicketMergeModal from "@/components/ticket/TicketMergeModal.vue";
 import { setupCustomizations } from "@/composables/formCustomisation";
+import { useLayoutPreference } from "@/composables/useLayoutPreference";
 import { useNotifyTicketUpdate } from "@/composables/realtime";
 import { useShortcut } from "@/composables/shortcuts";
 import { useView } from "@/composables/useView";
@@ -136,6 +137,7 @@ defineProps({
 
 const route = useRoute();
 const router = useRouter();
+const { splitView } = useLayoutPreference();
 const { findView } = useView("HD Ticket");
 const ticketStatusStore = useTicketStatusStore();
 

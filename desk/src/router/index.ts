@@ -34,18 +34,40 @@ const portalRoutes = [
     component: () => import("@/pages/home/Home.vue"),
   },
 
-  {
-    path: "/tickets",
-    name: "TicketsAgent",
-    component: () => import("@/pages/ticket/Tickets.vue"),
-  },
-  {
-    path: "/tickets/:ticketId",
-    name: "TicketAgent",
-    component: () =>
-      import(`@/pages/ticket/${handleMobileView("TicketAgent")}.vue`),
-    props: true,
-  },
+  // Desktop: nest the detail as a child so the list can stay mounted beside it
+  // (split view). Mobile keeps today's flat records — detail is a full-page swap.
+  ...(isMobileView.value
+    ? [
+        {
+          path: "/tickets",
+          name: "TicketsAgent",
+          component: () => import("@/pages/ticket/Tickets.vue"),
+        },
+        {
+          path: "/tickets/:ticketId",
+          name: "TicketAgent",
+          component: () => import("@/pages/ticket/MobileTicketAgent.vue"),
+          props: true,
+        },
+      ]
+    : [
+        {
+          path: "/tickets",
+          component: () => import("@/pages/ticket/Tickets.vue"),
+          children: [
+            {
+              path: "",
+              name: "TicketsAgent",
+            },
+            {
+              path: ":ticketId",
+              name: "TicketAgent",
+              component: () => import("@/pages/ticket/TicketAgent.vue"),
+              props: true,
+            },
+          ],
+        },
+      ]),
   {
     path: "/tickets/new/:templateId?",
     name: "TicketAgentNew",
@@ -216,10 +238,6 @@ const routes = [
     children: portalRoutes,
   },
 ];
-
-const handleMobileView = (componentName: string) => {
-  return isMobileView.value ? `Mobile${componentName}` : componentName;
-};
 
 export const router = createRouter({
   history: createWebHistory("/helpdesk/"),
