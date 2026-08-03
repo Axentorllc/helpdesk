@@ -3,6 +3,7 @@
     <slot>
       <header
         class="flex h-10.5 items-center justify-between mx-4 md:mx-5 md:mr-0"
+        :class="inline ? 'mt-2 shrink-0' : 'order-1'"
       >
         <div class="flex items-center gap-2 min-w-0 flex-1">
           <slot name="left-header" />

@@ -1,6 +1,8 @@
 <template>
   <div :class="isCustomerPortal ? '' : 'flex flex-1 flex-col overflow-hidden'">
-    <LayoutHeader>
+    <!-- Classic mode with a ticket open hides the whole list (pane + header) so the
+         detail header owns #app-header exactly like the old full-page view. -->
+    <LayoutHeader v-if="isCustomerPortal || splitView || !hasTicketOpen">
       <template #left-header>
         <ViewBreadcrumbs
           :label="__('Tickets')"

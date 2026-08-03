@@ -3,6 +3,7 @@
   <teleport to="#app-header" :disabled="inline">
     <div
       class="flex items-center mx-5 md:mr-0 text-p-sm gap-3 text-[14px] mb-[13px]"
+      :class="!inline && 'order-2'"
     >
       <!-- Source -->
       <div class="flex items-center gap-1">

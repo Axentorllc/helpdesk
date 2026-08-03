@@ -1,6 +1,8 @@
 <template>
   <div class="flex border-b pr-5">
-    <div id="app-header" class="flex-1 w-full"></div>
+    <!-- flex-col + order classes on teleported children keep the header above the
+         SLA strip regardless of teleport re-append order (split/classic toggle) -->
+    <div id="app-header" class="flex flex-col flex-1 w-full"></div>
     <div class="flex items-start justify-center">
       <CallUI :userEmail="user" />
     </div>
