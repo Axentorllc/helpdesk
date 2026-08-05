@@ -13,8 +13,6 @@
         />
       </template>
       <template #right-header>
-        <!-- Layout switcher (agent desktop only) -->
-        <LayoutToggle v-if="!isCustomerPortal" />
         <RouterLink
           class="inline-flex"
           :to="{ name: isCustomerPortal ? 'TicketNew' : 'TicketAgentNew' }"
@@ -30,6 +28,9 @@
             </template>
           </Button>
         </RouterLink>
+        <!-- Layout switcher (agent desktop only): always the last, right-most
+             control so it keeps the same visual anchor as the ticket header. -->
+        <LayoutToggle v-if="!isCustomerPortal" />
       </template>
     </LayoutHeader>
     <!-- Agent: list pane beside the detail child (split) or hidden behind it
