@@ -67,6 +67,8 @@
         >
           <Button icon="lucide-more-horizontal" />
         </Dropdown>
+        <!-- Close the detail pane (split view only; classic uses breadcrumbs/back) -->
+        <Button v-if="splitView" icon="lucide-x" @click="closePane" />
       </div>
     </template>
   </LayoutHeader>
@@ -139,6 +141,14 @@ const route = useRoute();
 const router = useRouter();
 const { splitView } = useLayoutPreference();
 const { findView } = useView("HD Ticket");
+
+// Dismiss the detail pane back to the list, keeping the active saved view.
+const closePane = () => {
+  router.push({
+    name: "TicketsAgent",
+    query: { view: route.query.view as string },
+  });
+};
 const ticketStatusStore = useTicketStatusStore();
 
 const ticket = inject(TicketSymbol)!;
@@ -356,6 +366,12 @@ const statusRef = useTemplateRef("statusRef");
 onMounted(() => {
   useShortcut("s", () => {
     statusRef.value?.$el?.click();
+  });
+
+  // Esc dismisses the detail pane (split view only; guarded so classic keeps
+  // today's no-op behavior). disableShortcuts() already covers typing/modals.
+  useShortcut("escape", () => {
+    if (splitView.value) closePane();
   });
 });
 </script>
