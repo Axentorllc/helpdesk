@@ -25,15 +25,15 @@ function syncFromServer() {
     .catch(() => {}); // offline/transient failure: keep the local mirror
 }
 
-function toggle() {
-  const next = !splitView.value;
-  splitView.value = next;
-  const layout = next ? "split" : "classic";
+function setLayout(layout: "classic" | "split") {
+  const split = layout === "split";
+  if (split === splitView.value) return;
+  splitView.value = split;
   localStorage.setItem(STORAGE_KEY, layout);
   call("helpdesk.api.general.set_agent_layout", { layout });
 }
 
 export function useLayoutPreference() {
   syncFromServer();
-  return { splitView, toggle };
+  return { splitView, setLayout };
 }

@@ -67,6 +67,9 @@
         >
           <Button icon="lucide-more-horizontal" />
         </Dropdown>
+        <!-- Classic full-page has no list header, so the layout switcher lives
+             here; in split it's in the list header and the pane gets ✕ instead. -->
+        <LayoutToggle v-if="!splitView" />
         <!-- Close the detail pane (split view only; classic uses breadcrumbs/back) -->
         <Button v-if="splitView" icon="lucide-x" @click="closePane" />
       </div>
@@ -84,6 +87,7 @@
 <script setup lang="ts">
 import { MultipleAvatar } from "@/components";
 import LayoutHeader from "@/components/LayoutHeader.vue";
+import LayoutToggle from "@/components/LayoutToggle.vue";
 import TicketMergeModal from "@/components/ticket/TicketMergeModal.vue";
 import { setupCustomizations } from "@/composables/formCustomisation";
 import { useLayoutPreference } from "@/composables/useLayoutPreference";

@@ -14,12 +14,7 @@
       </template>
       <template #right-header>
         <!-- Layout switcher (agent desktop only) -->
-        <TabButtons
-          v-if="!isCustomerPortal"
-          :model-value="splitView ? 'split' : 'classic'"
-          :buttons="layoutTabs"
-          @update:model-value="onLayoutChange"
-        />
+        <LayoutToggle v-if="!isCustomerPortal" />
         <RouterLink
           class="inline-flex"
           :to="{ name: isCustomerPortal ? 'TicketNew' : 'TicketAgentNew' }"
@@ -112,25 +107,18 @@ import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
-import { Badge, dayjs, TabButtons, Tooltip, usePageMeta } from "frappe-ui";
+import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
 import { computed, h, onMounted, onScopeDispose, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import LayoutToggle from "@/components/LayoutToggle.vue";
 import LucideAlignJustify from "~icons/lucide/align-justify";
-import LucidePanelRight from "~icons/lucide/panel-right";
 
 const router = useRouter();
 const route = useRoute();
 
-const { splitView, toggle: toggleLayout } = useLayoutPreference();
+const { splitView } = useLayoutPreference();
 // A ticket detail child is active (nested route on desktop agent).
 const hasTicketOpen = computed(() => route.name === "TicketAgent");
-const layoutTabs = [
-  { label: __("List view"), value: "classic", icon: LucideAlignJustify, hideLabel: true },
-  { label: __("Split view"), value: "split", icon: LucidePanelRight, hideLabel: true },
-];
-function onLayoutChange(value: string) {
-  if ((value === "split") !== splitView.value) toggleLayout();
-}
 
 const {
   getCurrentUserViews,
