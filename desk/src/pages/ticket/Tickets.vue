@@ -37,6 +37,7 @@
     <div v-if="!isCustomerPortal" class="flex flex-1 overflow-hidden">
       <div
         v-show="splitView || !hasTicketOpen"
+        class="agent-ticket-list"
         :class="
           splitView && hasTicketOpen
             ? 'w-[420px] shrink-0 border-r overflow-hidden flex flex-col'
@@ -518,3 +519,13 @@ usePageMeta(() => {
   };
 });
 </script>
+
+<style scoped>
+/* Rows are router-links (ListRow getRowRoute), so the ticket open in the detail
+   pane gets router-link-active for free — mark it so agents can see which row
+   is loaded while triaging in split view. */
+.agent-ticket-list :deep(a.router-link-active) {
+  @apply bg-surface-gray-2;
+  box-shadow: inset 2px 0 0 0 var(--text-ink-gray-7);
+}
+</style>

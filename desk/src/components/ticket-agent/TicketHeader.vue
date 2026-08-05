@@ -71,7 +71,9 @@
              here; in split it's in the list header and the pane gets ✕ instead. -->
         <LayoutToggle v-if="!splitView" />
         <!-- Close the detail pane (split view only; classic uses breadcrumbs/back) -->
-        <Button v-if="splitView" icon="lucide-x" @click="closePane" />
+        <Tooltip v-if="splitView" :text="__('Close (Esc)')">
+          <Button icon="lucide-x" @click="closePane" />
+        </Tooltip>
       </div>
     </template>
   </LayoutHeader>
@@ -113,6 +115,7 @@ import {
   createResource,
   Dropdown,
   toast,
+  Tooltip,
 } from "frappe-ui";
 import {
   computed,
