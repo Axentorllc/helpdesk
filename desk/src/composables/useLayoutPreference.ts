@@ -17,10 +17,12 @@ let reconciled = false;
 function syncFromServer() {
   if (reconciled || isCustomerPortal.value) return;
   reconciled = true;
-  call("helpdesk.api.general.get_agent_layout").then((layout: string) => {
-    splitView.value = layout === "split";
-    localStorage.setItem(STORAGE_KEY, layout);
-  });
+  call("helpdesk.api.general.get_agent_layout")
+    .then((layout: string) => {
+      splitView.value = layout === "split";
+      localStorage.setItem(STORAGE_KEY, layout);
+    })
+    .catch(() => {}); // offline/transient failure: keep the local mirror
 }
 
 function toggle() {

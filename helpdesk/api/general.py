@@ -15,7 +15,7 @@ def get_translations():
     return get_all_translations(language)
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist()
 def get_agent_layout():
     """Per-user agent ticket layout preference ("classic" or "split")."""
     return frappe.defaults.get_user_default(AGENT_LAYOUT_KEY) or "classic"
