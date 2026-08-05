@@ -46,7 +46,7 @@
   <ListView
     v-else-if="list.data?.data.length > 0"
     class="flex-1"
-    :columns="columns"
+    :columns="displayColumns"
     :rows="rows"
     row-key="name"
     :options="{
@@ -63,7 +63,7 @@
   >
     <ListHeader class="sm:mx-5 mx-3">
       <ListHeaderItem
-        v-for="column in columns"
+        v-for="column in displayColumns"
         :key="column.key"
         :item="column"
         @columnWidthUpdated="handleColumnResize"
@@ -428,6 +428,17 @@ const rows = computed(() => {
   return list.data?.data;
 });
 const columns = ref([]);
+
+// Compact mode (split-view list pane): show only the keyed columns with the
+// given widths so triage context survives a 420px pane. Falls back to the
+// view's own columns whenever options.compact is falsy.
+const displayColumns = computed(() => {
+  const compact = options.value?.compact && options.value?.compactColumns;
+  if (!compact) return columns.value;
+  return columns.value
+    .filter((c) => c.key in options.value.compactColumns)
+    .map((c) => ({ ...c, width: options.value.compactColumns[c.key] }));
+});
 
 function getGroupedByRows(listRows, groupByField) {
   let groupedRows = [];

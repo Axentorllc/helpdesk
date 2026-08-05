@@ -40,7 +40,7 @@
         class="agent-ticket-list"
         :class="
           splitView && hasTicketOpen
-            ? 'w-[420px] shrink-0 border-r overflow-hidden flex flex-col'
+            ? 'compact w-[420px] shrink-0 border-r overflow-hidden flex flex-col'
             : 'flex flex-1 flex-col overflow-hidden'
         "
       >
@@ -99,6 +99,7 @@ import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
 import { normalizeFilters } from "@/components/view-controls/filter";
 import ViewModal from "@/components/ViewModal.vue";
+import { disableShortcuts } from "@/composables/shortcuts";
 import { useLayoutPreference } from "@/composables/useLayoutPreference";
 import { useSocketEvent } from "@/composables/useSocketEvent";
 import { currentView, useView } from "@/composables/useView";
@@ -108,6 +109,7 @@ import { useTicketStatusStore } from "@/stores/ticketStatus";
 import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
+import { useEventListener } from "@vueuse/core";
 import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
 import { computed, h, onMounted, onScopeDispose, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -120,6 +122,28 @@ const route = useRoute();
 const { splitView } = useLayoutPreference();
 // A ticket detail child is active (nested route on desktop agent).
 const hasTicketOpen = computed(() => route.name === "TicketAgent");
+
+// Arrow keys walk the list while a pane ticket is open (split view, flat views
+// only — grouped views render in a different order than the flat data).
+function navigateRow(delta: number) {
+  const data = listViewRef.value?.list?.data;
+  if (!data?.data?.length || data.view_type === "group_by") return false;
+  const names = data.data.map((r) => String(r.name));
+  const next = names[names.indexOf(String(route.params.ticketId)) + delta];
+  if (!next) return false;
+  router.push({
+    name: "TicketAgent",
+    params: { ticketId: next },
+    query: { view: route.query.view },
+  });
+  return true;
+}
+useEventListener(document, "keydown", (e: KeyboardEvent) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  if (!splitView.value || !hasTicketOpen.value || isCustomerPortal.value) return;
+  if (disableShortcuts()) return; // typing / modal / menu — leave arrows alone
+  if (navigateRow(e.key === "ArrowDown" ? 1 : -1)) e.preventDefault();
+});
 
 const {
   getCurrentUserViews,
@@ -170,6 +194,10 @@ const selectBannerActions = [
 
 const options = computed(() => ({
   doctype: "HD Ticket",
+  // 420px split pane: keep id + subject + status (dot renderer) so triage
+  // context survives without opening each ticket.
+  compact: splitView.value && hasTicketOpen.value,
+  compactColumns: { name: "60px", subject: "minmax(0, 1fr)", status: "110px" },
   columnConfig: {
     subject: {
       custom: ({ row, item }) => {
@@ -527,5 +555,12 @@ usePageMeta(() => {
 .agent-ticket-list :deep(a.router-link-active) {
   @apply bg-surface-gray-2;
   box-shadow: inset 2px 0 0 0 var(--text-ink-gray-7);
+}
+
+/* frappe-ui ListView sizes its inner container to content (w-max) for wide
+   column sets; in the 420px compact pane force it to fit so the subject's
+   minmax(0,1fr) track shrinks instead of overflowing off-pane. */
+.agent-ticket-list.compact :deep(.w-max.min-w-full) {
+  width: 100%;
 }
 </style>

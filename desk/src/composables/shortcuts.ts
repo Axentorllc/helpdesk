@@ -112,7 +112,7 @@ function isEventRegistered(
   });
 }
 
-function disableShortcuts(): boolean {
+export function disableShortcuts(): boolean {
   const activeElement = document.activeElement;
   return Boolean(
     activeElement instanceof HTMLInputElement ||
