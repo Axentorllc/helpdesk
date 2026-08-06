@@ -129,7 +129,8 @@ import { TicketActivity } from "@/types";
 import { isElementInViewport } from "@/utils";
 import { Avatar, FeatherIcon } from "frappe-ui";
 import { PropType, computed, h, inject, nextTick, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import { ANCHOR_TAB } from "@/composables/useActiveTabManager";
+import { useRoute, useRouter } from "vue-router";
 import FeedbackBox from "../ticket-agent/FeedbackBox.vue";
 import CommentBox from "@/components/CommentBox.vue";
 import EmailArea from "@/components/EmailArea.vue";
@@ -159,6 +160,7 @@ const props = defineProps({
 const emit = defineEmits(["email:reply", "update"]);
 
 const route = useRoute();
+const router = useRouter();
 
 const { getUser } = useUserStore();
 const makeCall = inject<() => void>("makeCall");
@@ -223,10 +225,16 @@ function scrollToHash() {
           // Add highlight effect using Tailwind class
           element.classList.add("bg-surface-yellow-2");
 
-          // Remove highlight after 2 seconds. Keep the anchor hash: clearing
-          // it resets the mobile tab manager to Details (tab 0).
+          // After the highlight, swap the consumed anchor hash for its
+          // tab-name hash: clearing it resets the mobile tab manager to
+          // Details (tab 0), while keeping it makes scrollToLatestActivity
+          // re-yank to this anchor on every live update.
           setTimeout(() => {
             element.classList.remove("bg-surface-yellow-2");
+            const anchorTab = ANCHOR_TAB[elementId.split("-")[0]];
+            if (anchorTab && route.hash === hash) {
+              router.replace({ hash: "#" + anchorTab });
+            }
           }, 2000);
         }
       }, 1000);

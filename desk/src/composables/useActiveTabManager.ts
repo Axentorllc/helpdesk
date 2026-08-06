@@ -3,6 +3,11 @@ import { storeToRefs } from "pinia";
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+// Anchor hashes from notifications/search (#comment-<name>,
+// #communication-<name>) belong to a tab but must keep their hash so
+// TicketAgentActivities can scroll to the anchor — never rewrite them.
+export const ANCHOR_TAB = { comment: "comment", communication: "email" };
+
 export function useActiveTabManager(tabs) {
   const route = useRoute();
   const router = useRouter();
@@ -30,10 +35,6 @@ export function useActiveTabManager(tabs) {
     );
   }
 
-  // Anchor hashes from notifications/search (#comment-<name>,
-  // #communication-<name>) belong to a tab but must keep their hash so
-  // TicketAgentActivities can scroll to the anchor — never rewrite them.
-  const ANCHOR_TAB = { comment: "comment", communication: "email" };
   function resolveTabIndex(hashName) {
     const exact = findTabIndex(hashName);
     if (exact !== -1) return { index: exact, exact: true };
