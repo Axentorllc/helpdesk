@@ -30,15 +30,26 @@ export function useActiveTabManager(tabs) {
     );
   }
 
+  // Anchor hashes from notifications/search (#comment-<name>,
+  // #communication-<name>) belong to a tab but must keep their hash so
+  // TicketAgentActivities can scroll to the anchor — never rewrite them.
+  const ANCHOR_TAB = { comment: "comment", communication: "email" };
+  function resolveTabIndex(hashName) {
+    const exact = findTabIndex(hashName);
+    if (exact !== -1) return { index: exact, exact: true };
+    const anchorTab = ANCHOR_TAB[hashName.split("-")[0]];
+    return { index: anchorTab ? findTabIndex(anchorTab) : -1, exact: false };
+  }
+
   const tabIndex = ref(0);
 
   const setActiveTab = () => {
     let _activeTab = route.hash.replace("#", "");
     if (_activeTab) {
-      let index = findTabIndex(_activeTab);
-      if (index !== -1 || index === 0) {
+      let { index, exact } = resolveTabIndex(_activeTab);
+      if (index !== -1) {
         tabIndex.value = index;
-        setActiveTabInUrl(tabs.value[index].name);
+        if (exact) setActiveTabInUrl(tabs.value[index].name);
         return;
       }
     }
@@ -51,7 +62,7 @@ export function useActiveTabManager(tabs) {
   watch(
     () => route.hash,
     (newHash) => {
-      let index = findTabIndex(newHash.replace("#", ""));
+      let { index } = resolveTabIndex(newHash.replace("#", ""));
       if (index === -1) index = 0;
 
       if (index == 0) {

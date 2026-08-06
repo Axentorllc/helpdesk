@@ -129,7 +129,7 @@ import { TicketActivity } from "@/types";
 import { isElementInViewport } from "@/utils";
 import { Avatar, FeatherIcon } from "frappe-ui";
 import { PropType, computed, h, inject, nextTick, onMounted, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import FeedbackBox from "../ticket-agent/FeedbackBox.vue";
 import CommentBox from "@/components/CommentBox.vue";
 import EmailArea from "@/components/EmailArea.vue";
@@ -159,7 +159,6 @@ const props = defineProps({
 const emit = defineEmits(["email:reply", "update"]);
 
 const route = useRoute();
-const router = useRouter();
 
 const { getUser } = useUserStore();
 const makeCall = inject<() => void>("makeCall");
@@ -224,10 +223,10 @@ function scrollToHash() {
           // Add highlight effect using Tailwind class
           element.classList.add("bg-surface-yellow-2");
 
-          // Remove highlight after 2 seconds
+          // Remove highlight after 2 seconds. Keep the anchor hash: clearing
+          // it resets the mobile tab manager to Details (tab 0).
           setTimeout(() => {
             element.classList.remove("bg-surface-yellow-2");
-            router.replace({ hash: "" });
           }, 2000);
         }
       }, 1000);

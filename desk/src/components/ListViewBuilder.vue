@@ -757,7 +757,9 @@ function handleReload() {
 function handleViewChanges() {
   let currentView: View = findCurrentView();
   if (!currentView) {
-    router.push({ name: route.name });
+    // Strip the stale ?view param but keep the hash — it carries the detail
+    // pane's tab/anchor state (e.g. #comment-<name>) in split view.
+    router.push({ name: route.name, hash: route.hash || undefined });
     reload(true);
     return;
   }

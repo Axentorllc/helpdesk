@@ -104,15 +104,24 @@ function getRoute(n: Notification) {
         params: {
           ticketId: n.reference_ticket,
         },
-        hash: "#" + n.reference_comment,
+        hash: "#comment-" + n.reference_comment,
       };
     case "Assignment":
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
+      };
     case "Reaction":
       return {
         name: "TicketAgent",
         params: {
           ticketId: n.reference_ticket,
         },
+        hash: n.reference_comment
+          ? "#comment-" + n.reference_comment
+          : undefined,
       };
   }
 }
