@@ -5,7 +5,8 @@
   >
     Activity
   </div>
-  <div class="overflow-auto px-5 md:px-10 grow">
+  <div class="relative min-h-0 grow">
+  <div ref="scrollEl" class="h-full overflow-auto px-5 md:px-10">
     <div
       v-for="(c, i) in communications"
       :id="c.name"
@@ -41,13 +42,17 @@
       </div>
     </div>
   </div>
+  <NewMessagePill v-if="showPill" @click="scrollToBottom(true)" />
+  </div>
 </template>
 
 <script setup lang="ts">
+import { useSmartScroll } from "@/composables/useSmartScroll";
 import { isElementInViewport } from "@/utils";
 import { Avatar } from "frappe-ui";
-import { computed, inject, nextTick, watch } from "vue";
+import { computed, inject, nextTick, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import NewMessagePill from "@/components/NewMessagePill.vue";
 import TicketCommunication from "./TicketCommunication.vue";
 import { ITicket } from "./symbols";
 
@@ -62,12 +67,21 @@ const props = withDefaults(defineProps<P>(), {
 });
 const route = useRoute();
 const ticket = inject(ITicket);
+
+const scrollEl = ref<HTMLElement | null>(null);
+const { showPill, scrollToBottom, onNewContent } = useSmartScroll(scrollEl);
+
 const communications = computed(() => {
   const _communications = ticket.data.communications || [];
   return _communications.sort(
     (a, b) => new Date(a.creation) - new Date(b.creation)
   );
 });
+
+watch(
+  () => communications.value.length,
+  (n, old) => { if (n > old) onNewContent(); }
+);
 
 function scroll(id: string) {
   const e = document.getElementById(id);
@@ -85,4 +99,6 @@ nextTick(() => {
   const id = hash || communications.value.slice(-1).pop()?.name;
   if (id) setTimeout(() => scroll(id), 1000);
 });
+
+defineExpose({ scrollToBottom });
 </script>

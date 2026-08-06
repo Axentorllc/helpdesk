@@ -1,6 +1,8 @@
 <template>
   <ActivityHeader :title="title" />
+  <div class="relative flex min-h-0 flex-1 flex-col">
   <FadedScrollableDiv
+    ref="scrollWrap"
     class="flex flex-col flex-1 overflow-y-auto"
     :mask-length="20"
   >
@@ -113,6 +115,8 @@
     </div>
     <ChannelTypingRow v-if="typingLabel" :label="typingLabel" />
   </FadedScrollableDiv>
+  <NewMessagePill v-if="showPill" @click="scrollToBottom(true)" />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -124,11 +128,13 @@ import {
   EmailIcon,
   PhoneIcon,
 } from "@/components/icons";
+import { useSmartScroll } from "@/composables/useSmartScroll";
 import { useUserStore } from "@/stores/user";
 import { TicketActivity } from "@/types";
 import { isElementInViewport } from "@/utils";
 import { Avatar, FeatherIcon } from "frappe-ui";
-import { PropType, computed, h, inject, nextTick, onMounted, watch } from "vue";
+import { PropType, computed, h, inject, nextTick, onMounted, ref, watch } from "vue";
+import NewMessagePill from "@/components/NewMessagePill.vue";
 import { ANCHOR_TAB } from "@/composables/useActiveTabManager";
 import { useRoute, useRouter } from "vue-router";
 import FeedbackBox from "../ticket-agent/FeedbackBox.vue";
@@ -164,6 +170,16 @@ const router = useRouter();
 
 const { getUser } = useUserStore();
 const makeCall = inject<() => void>("makeCall");
+
+const scrollWrap = ref<InstanceType<typeof FadedScrollableDiv> | null>(null);
+const scrollEl = computed(() => scrollWrap.value?.scrollableDiv ?? null);
+const { showPill, scrollToBottom, onNewContent } = useSmartScroll(scrollEl);
+
+// history rows ("viewed this", assignment) excluded — pill for those is noise
+const messageCount = computed(
+  () => props.activities.filter((a) => a.type !== "history").length
+);
+watch(messageCount, (n, old) => { if (n > old) onNewContent(); });
 
 const emptyText = computed(() => {
   if (props.title === "Emails") return "No email communications";

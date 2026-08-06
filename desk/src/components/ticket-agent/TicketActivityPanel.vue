@@ -347,14 +347,6 @@ function typingLabelFor(tabName: string): string {
   return `${name} is typing`;
 }
 
-// Socket reload updates the feed reactively but never scrolls; this watch does.
-const channelMessageCount = computed(() =>
-  channelThreads.value.reduce((n, ch) => n + (ch.thread.messages.value?.length ?? 0), 0)
-);
-watch(channelMessageCount, (n, old) => {
-  if (n > old) ticketAgentActivitiesRef.value?.scrollToLatestActivity();
-});
-
 function filterActivities(eventType: TicketTab | string) {
   if (eventType === "activity") {
     return _activities.value;

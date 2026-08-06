@@ -47,12 +47,12 @@
         >
           <template #tab-panel="{ tab }">
             <TicketCustomerTemplateFields v-if="tab.name === 'details'" />
-            <TicketConversation v-else :show-header="false" class="grow" />
+            <TicketConversation v-else ref="conversationRef" :show-header="false" class="grow" />
           </template>
         </Tabs>
 
         <!-- Desktop: conversation -->
-        <TicketConversation v-else class="grow" />
+        <TicketConversation v-else ref="conversationRef" class="grow" />
 
         <div
           v-if="!isMobileView || activeTab === 0"
@@ -118,6 +118,7 @@ import { __ } from "@/translation";
 import {
   computed,
   defineAsyncComponent,
+  nextTick,
   onMounted,
   onUnmounted,
   provide,
@@ -172,6 +173,7 @@ const editorContent = ref("");
 const attachments = ref([]);
 const showFeedbackDialog = ref(false);
 const isExpanded = ref(false);
+const conversationRef = ref<InstanceType<typeof TicketConversation> | null>(null);
 
 const { isMobileView } = useScreenSize();
 const { $dialog } = globalStore();
@@ -267,7 +269,7 @@ const send = createResource({
     editor.value.editor.commands.clearContent(true);
     attachments.value = [];
     isExpanded.value = false;
-    ticket.reload();
+    ticket.reload().then(() => nextTick(() => conversationRef.value?.scrollToBottom()));
   },
 });
 
