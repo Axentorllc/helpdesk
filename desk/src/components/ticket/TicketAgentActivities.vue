@@ -215,7 +215,10 @@ function scrollToHash() {
       // Wait for activities to be rendered
       setTimeout(() => {
         const element = document.getElementById(elementId);
-        if (element) {
+        // Tab-name hashes (#activity) collide with the icon sprite's
+        // <symbol id="activity">; only anchor-scroll to real activity rows,
+        // never clear the tab hash otherwise.
+        if (element && element.closest(".activities")) {
           (element as any).scrollIntoViewIfNeeded();
 
           // Add highlight effect using Tailwind class
