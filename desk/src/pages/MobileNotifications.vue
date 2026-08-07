@@ -8,6 +8,7 @@
       />
     </template>
     <template #right-header>
+      <NotificationPrefs />
       <Tooltip :text="__('Mark all as read')">
         <div>
           <Button
@@ -38,7 +39,10 @@
       <div>
         <div class="mb-2 leading-5">
           <span class="space-x-1 rtl:space-x-reverse text-ink-gray-7">
-            <span class="font-medium text-ink-gray-9">{{ n.user_from }}</span>
+            <span
+              class="font-medium text-ink-gray-9"
+              v-if="n.notification_type !== 'Reply'"
+            >{{ n.user_from }}</span>
             <span v-if="n.notification_type === 'Mention'">{{
               __("mentioned you in ticket")
             }}</span>
@@ -47,6 +51,12 @@
             }}</span>
             <span v-if="n.notification_type === 'Reaction'">{{
               __("has reopened the ticket")
+            }}</span>
+            <span v-if="n.notification_type === 'Reply'">{{
+              __("New customer reply on")
+            }}</span>
+            <span v-if="n.notification_type === 'Unassignment'">{{
+              __("removed you from ticket")
             }}</span>
             <span class="font-medium text-ink-gray-9">{{
               n.reference_ticket
@@ -82,6 +92,7 @@ import { Notification } from "@/types";
 import { UserAvatar } from "@/components";
 import LucideBell from "~icons/lucide/bell";
 import { __ } from "@/translation";
+import NotificationPrefs from "@/components/notifications/NotificationPrefs.vue";
 const notificationStore = useNotificationStore();
 const target = ref(null);
 onClickOutside(
@@ -122,6 +133,21 @@ function getRoute(n: Notification) {
         hash: n.reference_comment
           ? "#comment-" + n.reference_comment
           : undefined,
+      };
+    case "Reply":
+    case "Unassignment":
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
+      };
+    default:
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
       };
   }
 }

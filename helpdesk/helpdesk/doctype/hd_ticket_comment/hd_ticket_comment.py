@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from helpdesk.helpdesk.doctype.hd_notification.utils import emit_notification
 from helpdesk.mixins.mentions import HasMentions
 from helpdesk.utils import capture_event, get_doc_room, publish_event
 
@@ -154,6 +155,18 @@ def notify_reaction(doc, emoji, user):
         message = "1 person reacted to your comment"
     else:
         message = "{} people reacted to your comment".format(count)
+
+    if emit_notification(
+        "reaction",
+        {
+            "user_to": doc.commented_by,
+            "ticket": doc.reference_ticket,
+            "comment": doc.name,
+            "message": message,
+            "actor": user,
+        },
+    ):
+        return
 
     existing = frappe.db.get_value(
         "HD Notification",

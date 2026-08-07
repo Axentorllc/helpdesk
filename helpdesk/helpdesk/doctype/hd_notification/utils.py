@@ -1,6 +1,25 @@
 import frappe
 
 
+def emit_notification(kind: str, context: dict) -> bool:
+    """Publish a notification-worthy event to `helpdesk_notification_sink` handlers.
+
+    Each handler is `(kind, context) -> bool`; the first truthy return marks the
+    event handled and callers skip stock behavior. Exceptions are logged and the
+    next handler runs. No handler (or none truthy) → False → stock behavior runs.
+    """
+    for path in frappe.get_hooks("helpdesk_notification_sink"):
+        try:
+            if frappe.get_attr(path)(kind, context):
+                return True
+        except Exception:
+            frappe.log_error(
+                frappe.get_traceback(),
+                f"helpdesk_notification_sink failed: {path}",
+            )
+    return False
+
+
 @frappe.whitelist()
 def clear(ticket: str | None = None, comment: str | None = None):
     """

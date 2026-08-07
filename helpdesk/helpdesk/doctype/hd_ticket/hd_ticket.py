@@ -40,6 +40,7 @@ from helpdesk.utils import (
 )
 
 from ..hd_notification.utils import clear as clear_notifications
+from ..hd_notification.utils import emit_notification
 from ..hd_service_level_agreement.utils import get_sla
 
 
@@ -223,6 +224,9 @@ class HDTicket(Document):
         self.capture_update_telemetry_events()
 
     def notify_agent(self, agent, notification_type="Assignment"):
+        kind = "reopen" if notification_type == "Reaction" else "assignment"
+        if emit_notification(kind, {"user_to": agent, "ticket": self.name}):
+            return
         frappe.get_doc(
             frappe._dict(
                 doctype="HD Notification",
@@ -1010,6 +1014,11 @@ class HDTicket(Document):
         # be reopened.
         # handle re opening tickets for email
         if c.sent_or_received == "Received":
+            # Emit before the reopen path below: a sink flags the ticket so the
+            # subsequent reopen notify_agent is suppressed (the reply row covers it).
+            emit_notification(
+                "customer_reply", {"ticket": self.name, "content": c.content}
+            )
             # check if agent has replied
 
             if self.has_agent_replied:

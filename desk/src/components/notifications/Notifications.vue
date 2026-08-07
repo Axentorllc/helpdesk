@@ -14,7 +14,8 @@
       class="sticky top-0 z-10 flex items-center justify-between border-b bg-surface-base px-5 py-2.5"
     >
       <span class="text-lg-medium">Notifications</span>
-      <div>
+      <div class="flex items-center gap-1">
+        <NotificationPrefs />
         <Button
           theme="blue"
           variant="ghost"
@@ -54,7 +55,10 @@
             <span class="space-x-1 text-ink-gray-7">
               <span
                 class="font-medium text-ink-gray-9"
-                v-if="n.notification_type !== 'Reaction' || !n.message"
+                v-if="
+                  (n.notification_type !== 'Reaction' || !n.message) &&
+                  n.notification_type !== 'Reply'
+                "
               >
                 {{ n.user_from }}
               </span>
@@ -67,6 +71,12 @@
               <span v-if="n.notification_type === 'Reaction'">
                 {{ n.message || "has reopened the ticket" }}
               </span>
+              <span v-if="n.notification_type === 'Reply'"
+                >New customer reply on</span
+              >
+              <span v-if="n.notification_type === 'Unassignment'"
+                >removed you from ticket</span
+              >
             </span>
             <span class="font-medium text-ink-gray-9"
               >&nbsp{{ n.reference_ticket }}
@@ -102,6 +112,7 @@ import { useSidebarStore } from "@/stores/sidebar";
 import { Notification } from "@/types";
 import { onClickOutside } from "@vueuse/core";
 import { ref } from "vue";
+import NotificationPrefs from "./NotificationPrefs.vue";
 
 const notificationStore = useNotificationStore();
 const sidebarStore = useSidebarStore();
@@ -114,7 +125,9 @@ onClickOutside(
     }
   },
   {
-    ignore: ["#notifications-btn"],
+    // The prefs popover teleports to <body>, so clicks inside it read as
+    // "outside" the panel and would close it before the switch registers.
+    ignore: ["#notifications-btn", ".notification-prefs-popover"],
   }
 );
 
@@ -150,6 +163,21 @@ function getRoute(n: Notification) {
         hash: n.reference_comment
           ? "#comment-" + n.reference_comment
           : undefined,
+      };
+    case "Reply":
+    case "Unassignment":
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
+      };
+    default:
+      return {
+        name: "TicketAgent",
+        params: {
+          ticketId: n.reference_ticket,
+        },
       };
   }
 }

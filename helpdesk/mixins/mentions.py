@@ -1,5 +1,6 @@
 import frappe
 
+from helpdesk.helpdesk.doctype.hd_notification.utils import emit_notification
 from helpdesk.utils import extract_mentions
 
 
@@ -45,5 +46,16 @@ class HasMentions:
                 },
             ):
                 # avoid loop of notification to quit at first mention
+                continue
+            if emit_notification(
+                "mention",
+                {
+                    "user_to": mention.email,
+                    "ticket": values.get("reference_ticket"),
+                    "comment": values.get("reference_comment"),
+                    "content": self.content,
+                    "actor": self.owner,
+                },
+            ):
                 continue
             frappe.get_doc(values).insert()
