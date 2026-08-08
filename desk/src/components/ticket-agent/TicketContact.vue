@@ -29,9 +29,7 @@
           #{{ ticket.doc.name }}
         </p>
         <div class="flex items-center">
-          <span>{{
-            ticket.doc.via_customer_portal ? __("via Portal") : __("via Email")
-          }}</span>
+          <span>{{ viaLabel }}</span>
         </div>
       </div>
     </div>
@@ -52,6 +50,8 @@
 
 <script setup lang="ts">
 import { useShortcut } from "@/composables/shortcuts";
+import { useChannelThread } from "@/composables/useChannelThread";
+import { useChannelsStore } from "@/stores/channels";
 import { useTelephonyStore } from "@/stores/telephony";
 import { useUserStore } from "@/stores/user";
 import { TicketContactSymbol, TicketSymbol } from "@/types";
@@ -70,6 +70,29 @@ const showPhoneModal = ref(false);
 const ticket = inject(TicketSymbol)!;
 
 const contact = inject(TicketContactSymbol)!;
+
+// Shared per (channel, ticket) with the activity feed — no extra requests.
+const channelsStore = useChannelsStore();
+const { channels } = storeToRefs(channelsStore);
+const ticketId = computed(() => String(ticket.value?.doc?.name || ""));
+const channelThreads = computed(() =>
+  channels.value.map((ch) => ({
+    label: ch.label,
+    thread: useChannelThread(ch.channel_key, ticketId.value),
+  }))
+);
+
+// Upstream's portal/email binary mislabels channel tickets (WhatsApp/webchat
+// arrive with via_customer_portal unset) — a live channel conversation wins.
+const viaLabel = computed(() => {
+  const ch = channelThreads.value.find(
+    (c) => c.thread.conversation.value !== null
+  );
+  if (ch) return __("via {0}", [ch.label]);
+  return ticket.value.doc.via_customer_portal
+    ? __("via Portal")
+    : __("via Email");
+});
 const contactImage = computed(() => {
   if (!contact.value?.data) return "";
   const email = contact.value?.data?.email_id ?? "";
