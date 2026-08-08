@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { recordTicketVisit } from "@/components/command-palette/recentTickets";
 import TicketIcon from "@/components/icons/TicketIcon.vue";
 import TicketActivityPanel from "@/components/ticket-agent/TicketActivityPanel.vue";
 import TicketHeader from "@/components/ticket-agent/TicketHeader.vue";
@@ -60,7 +61,10 @@ import {
   useTicket,
 } from "@/composables/useTicket";
 import { revalidateChannelThreads } from "@/composables/useChannelThread";
-import { ticketsToNavigate } from "@/composables/useTicketNavigation";
+import {
+  ticketsToNavigate,
+  useTicketNavigation,
+} from "@/composables/useTicketNavigation";
 import { useTelephonyStore } from "@/stores/telephony";
 import {
   ActivitiesSymbol,
@@ -92,6 +96,8 @@ const props = defineProps({
 });
 const route = useRoute();
 const showPhoneModal = ref(false);
+
+useTicketNavigation();
 
 const ticketComposable = computed(() => useTicket(props.ticketId));
 const ticket = computed(() => ticketComposable.value.ticket);
@@ -176,6 +182,13 @@ watch(
     ticketsToNavigate.reload();
     ticket.value.markSeen.reload();
   },
+  { immediate: true }
+);
+
+// Feeds the command palette's "Recent" list, which is what an empty Cmd+K shows.
+watch(
+  () => ticket.value?.doc?.subject,
+  (subject) => subject && recordTicketVisit(props.ticketId, subject),
   { immediate: true }
 );
 

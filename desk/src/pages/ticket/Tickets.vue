@@ -95,6 +95,7 @@
 import { LayoutHeader, ListViewBuilder } from "@/components";
 import { TicketIcon } from "@/components/icons";
 import IndicatorIcon from "@/components/icons/IndicatorIcon.vue";
+import TicketPriority from "@/components/TicketPriority.vue";
 import BulkReplyModal from "@/components/ticket-agent/BulkReplyModal.vue";
 import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
@@ -247,6 +248,9 @@ const options = computed(() => ({
         );
       },
     },
+    priority: {
+      custom: ({ item }) => h(TicketPriority, { priority: item }),
+    },
     agreement_status: {
       custom: ({ item }) => {
         return h(Badge, {
@@ -361,7 +365,7 @@ function handleResolutionByField(row: any, item: string) {
     h(Badge, {
       label: shortDuration(item),
       variant: "subtle",
-      theme: "orange",
+      theme: "violet",
     })
   );
 }

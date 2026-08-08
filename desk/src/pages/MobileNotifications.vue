@@ -115,7 +115,10 @@ function getRoute(n: Notification) {
         params: {
           ticketId: n.reference_ticket,
         },
-        hash: "#comment-" + n.reference_comment,
+        // ?highlight is the activity deep-link target (element id, see
+        // TicketAgentActivities); the hash only selects the tab.
+        hash: "#activity",
+        query: { highlight: "comment-" + n.reference_comment },
       };
     case "Assignment":
       return {
@@ -130,8 +133,9 @@ function getRoute(n: Notification) {
         params: {
           ticketId: n.reference_ticket,
         },
-        hash: n.reference_comment
-          ? "#comment-" + n.reference_comment
+        hash: n.reference_comment ? "#activity" : undefined,
+        query: n.reference_comment
+          ? { highlight: "comment-" + n.reference_comment }
           : undefined,
       };
     case "Reply":

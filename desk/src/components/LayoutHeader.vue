@@ -5,7 +5,7 @@
            controls line up with the breadcrumb row, not the center of the
            breadcrumb+SLA block. Teleported: baseline classes + explicit order. -->
       <header
-        class="flex justify-between mx-4 md:mx-5 md:mr-0"
+        class="flex justify-between mx-4 md:ms-5 md:me-0"
         :class="inline ? 'mt-2 shrink-0 items-start' : 'h-10.5 items-center order-1'"
       >
         <div class="flex items-center gap-2 min-w-0 flex-1">

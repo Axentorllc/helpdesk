@@ -1,5 +1,5 @@
 <template>
-  <div class="flex border-b pr-5">
+  <div class="flex border-b pe-5 rtl:pe-6">
     <!-- flex-col + order classes on teleported children keep the header above the
          SLA strip regardless of teleport re-append order (split/classic toggle) -->
     <div id="app-header" class="flex flex-col flex-1 w-full"></div>
