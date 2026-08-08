@@ -1,7 +1,7 @@
 import { useShortcut } from "@/composables/shortcuts";
 import { router } from "@/router";
 import { createResource } from "frappe-ui";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 export const currentTicketIndex = ref(0);
 
@@ -9,6 +9,23 @@ export const ticketsToNavigate = createResource({
   url: "helpdesk.helpdesk.doctype.hd_ticket.api.get_navigation_tickets",
   cache: ["ticketsToNavigate"],
 });
+
+// Clicks, deep links, the command palette, and the split-view arrow keys all
+// change the open ticket without going through goToNext/PreviousTicket —
+// resync the index from the route so Shift+</> and the prev/next disabled
+// states never walk from a stale position.
+watch(
+  [
+    () => router.currentRoute.value.params.ticketId,
+    () => ticketsToNavigate.data,
+  ],
+  ([id, data]) => {
+    if (typeof id !== "string" || !Array.isArray(data)) return;
+    const idx = data.findIndex((t) => String(t) === id);
+    if (idx !== -1) currentTicketIndex.value = idx;
+  },
+  { immediate: true }
+);
 
 // Module scope, not inside the composable: the command palette needs these too,
 // and calling the composable a second time would register duplicate shortcuts.
