@@ -113,7 +113,7 @@ import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
 import { useEventListener } from "@vueuse/core";
 import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
-import { computed, h, onMounted, onScopeDispose, reactive, ref } from "vue";
+import { computed, h, onMounted, onScopeDispose, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LayoutToggle from "@/components/LayoutToggle.vue";
 import LucideAlignJustify from "~icons/lucide/align-justify";
@@ -145,6 +145,20 @@ useEventListener(document, "keydown", (e: KeyboardEvent) => {
   if (!splitView.value || !hasTicketOpen.value || isCustomerPortal.value) return;
   if (disableShortcuts()) return; // typing / modal / menu — leave arrows alone
   if (navigateRow(e.key === "ArrowDown" ? 1 : -1)) e.preventDefault();
+});
+
+// Switching to split from the bare list changes nothing visible until a ticket
+// is picked — open the first listed ticket so the pane appears immediately
+// (flat views only: grouped views render in a different order than the data).
+watch(splitView, (on) => {
+  if (!on || hasTicketOpen.value || isCustomerPortal.value) return;
+  const data = listViewRef.value?.list?.data;
+  if (!data?.data?.length || data.view_type === "group_by") return;
+  router.push({
+    name: "TicketAgent",
+    params: { ticketId: String(data.data[0].name) },
+    query: { view: route.query.view },
+  });
 });
 
 const {
