@@ -26,7 +26,9 @@ class HDNotification(Document):
         if self.reference_ticket:
             res += "/tickets/" + str(self.reference_ticket)
         if self.reference_comment:
-            res += "#" + self.reference_comment
+            # ?highlight model (see TicketAgentActivities.vue) — the bare
+            # "#<name>" fragment this used to emit resolves nowhere in the SPA.
+            res += f"?highlight=comment-{self.reference_comment}#activity"
         return frappe.utils.get_url(res)
 
     def parse_html(self):
