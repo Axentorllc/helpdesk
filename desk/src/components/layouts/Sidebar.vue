@@ -105,6 +105,7 @@ import Timer from "~icons/lucide/timer";
 import UserPen from "~icons/lucide/user-pen";
 import LucideUserPlus from "~icons/lucide/user-plus";
 import { useTelephonyStore } from "@/stores/telephony";
+import { useAgentStatusStore } from "@/stores/agentStatus";
 import {
   setActiveSettingsTab,
   showSettingsModal,
@@ -118,6 +119,30 @@ const configStore = useConfigStore();
 
 const { appsMenuOption } = useApps();
 const { currentTheme, toggleTheme } = useTheme();
+const agentStatusStore = useAgentStatusStore();
+
+// Same wrapper as MobileSidebar: size-4 outer keeps icon-column alignment.
+const statusDot = (status: string) =>
+  h("span", { class: "flex items-center justify-center" }, [
+    h("span", {
+      class: [
+        "size-2.5 shrink-0 rounded-full",
+        agentStatusStore.statusColor(status),
+      ],
+    }),
+  ]);
+
+const availabilityMenuOption = computed(() => ({
+  label: agentStatusStore.myStatus
+    ? __(agentStatusStore.myStatus)
+    : __("Set status"),
+  icon: () => statusDot(agentStatusStore.myStatus),
+  submenu: agentStatusStore.statusOptions.map((option) => ({
+    label: __(option),
+    icon: () => statusDot(option),
+    onClick: () => agentStatusStore.setMyStatus(option),
+  })),
+}));
 
 const themeMenuItem = computed(() => ({
   label: __("Toggle theme"),
@@ -143,6 +168,7 @@ const customerPortalDropdown = computed(() => [
 
 const agentPortalDropdown = computed(() => [
   appsMenuOption.value,
+  ...(authStore.hasAgentRecord ? [availabilityMenuOption.value] : []),
   {
     label: __("Customer portal"),
     icon: "lucide-users",

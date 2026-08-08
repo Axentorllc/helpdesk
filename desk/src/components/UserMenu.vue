@@ -11,7 +11,15 @@
             : 'w-full px-2 hover:bg-surface-gray-3'
         "
       >
-        <BrandLogo />
+        <span class="relative shrink-0">
+          <BrandLogo />
+          <!-- Status presence dot — agents only; hidden until statuses load -->
+          <span
+            v-if="agentStatusStore.myStatus && agentStatusStore.getStatus(agentStatusStore.myStatus)"
+            class="absolute -bottom-0.5 -end-0.5 size-2.5 rounded-full ring-2 ring-surface-base"
+            :class="agentStatusStore.statusColor(agentStatusStore.myStatus)"
+          />
+        </span>
         <div
           class="flex flex-1 flex-col text-start duration-300 ease-in-out overflow-hidden rtl:items-start pe-2"
           :class="
@@ -49,6 +57,7 @@
 <script setup lang="ts">
 import BrandLogo from "@/components/BrandLogo.vue";
 import { useAuthStore } from "@/stores/auth";
+import { useAgentStatusStore } from "@/stores/agentStatus";
 import { useConfigStore } from "@/stores/config";
 import { useSidebarStore } from "@/stores/sidebar";
 import { Dropdown } from "frappe-ui";
@@ -69,6 +78,7 @@ const props = defineProps({
 
 const authStore = useAuthStore();
 const sidebarStore = useSidebarStore();
+const agentStatusStore = useAgentStatusStore();
 
 const collapsed = computed(() => props.isCollapsed ?? !sidebarStore.isExpanded);
 </script>
