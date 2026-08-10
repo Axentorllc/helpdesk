@@ -103,6 +103,80 @@
 
       <hr class="my-8" />
 
+      <!-- Workload -->
+      <div>
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <span class="text-lg-semibold text-ink-gray-8">{{ __("Workload") }}</span>
+            <Button
+              icon="lucide-refresh-cw"
+              variant="ghost"
+              @click="workload.reload()"
+            />
+          </div>
+          <span class="text-p-sm text-ink-gray-6">
+            {{ __("Open tickets per member, live — total across all their teams.") }}
+          </span>
+        </div>
+        <div class="mt-5 max-w-md">
+          <div
+            v-if="workload.loading && !workload.data"
+            class="flex items-center justify-center py-4"
+          >
+            <LoadingIndicator class="w-4" />
+          </div>
+          <div
+            v-else-if="workload.error"
+            class="text-p-sm text-ink-gray-5"
+          >
+            {{ __("Could not load workload.") }}
+          </div>
+          <div
+            v-else-if="!members.length"
+            class="text-p-sm text-ink-gray-5"
+          >
+            {{ __("No members in this team.") }}
+          </div>
+          <div v-else class="flex flex-col gap-2">
+            <div
+              v-for="m in members"
+              :key="m.user"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-base text-ink-gray-7">{{ m.full_name || m.user }}</span>
+                <Badge
+                  v-if="m.availability_category === 'Active'"
+                  :label="m.availability || m.availability_category"
+                  theme="green"
+                />
+                <Badge
+                  v-else-if="m.availability_category === 'Away'"
+                  :label="m.availability || m.availability_category"
+                  theme="orange"
+                  variant="subtle"
+                />
+                <Badge
+                  v-else-if="m.availability_category === 'Unavailable'"
+                  :label="m.availability || m.availability_category"
+                  theme="gray"
+                  variant="subtle"
+                />
+                <Badge
+                  v-else
+                  :label="__('No status')"
+                  theme="gray"
+                  variant="subtle"
+                />
+              </div>
+              <span class="text-base-medium text-ink-gray-7">{{ m.open_tickets }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-8" />
+
       <!-- Eligibility -->
       <div>
         <div class="flex flex-col gap-1">
@@ -159,11 +233,14 @@
 
 <script setup lang="ts">
 import {
+  Badge,
   Button,
   call,
+  createResource,
   Dropdown,
   FeatherIcon,
   FormControl,
+  LoadingIndicator,
   Switch,
   toast,
 } from "frappe-ui";
@@ -198,6 +275,14 @@ const emit = defineEmits<{
 }>();
 
 const saving = ref(false);
+
+const workload = createResource({
+  url: "axe_helpdesk.api.team_assignment.team_workload",
+  params: { team: props.policy.team },
+  auto: true,
+});
+
+const members = computed(() => workload.data?.members ?? []);
 
 // Parse routing condition JSON from the policy (may be a JSON string or already an array).
 function parseConditionJson(raw: string | any[] | undefined): any[] {

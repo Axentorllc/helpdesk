@@ -65,8 +65,9 @@
           <div class="grid grid-cols-12 items-center gap-4 text-sm text-ink-gray-5 ms-2">
             <div class="col-span-1"></div>
             <div class="col-span-4">{{ __("Team") }}</div>
-            <div class="col-span-3">{{ __("Distribution") }}</div>
+            <div class="col-span-2">{{ __("Distribution") }}</div>
             <div class="col-span-2">{{ __("Scope") }}</div>
+            <div class="col-span-1">{{ __("Queued") }}</div>
             <div class="col-span-2">{{ __("Enabled") }}</div>
           </div>
           <hr class="mt-2 mx-2" />
@@ -101,7 +102,7 @@
                       {{ __("No routing condition") }}
                     </div>
                   </div>
-                  <div class="col-span-3" @click="emit('open', policy)">
+                  <div class="col-span-2" @click="emit('open', policy)">
                     <Badge
                       v-if="policy.distribution"
                       :label="policy.distribution"
@@ -116,6 +117,19 @@
                       theme="gray"
                       variant="subtle"
                       class="truncate max-w-full"
+                    />
+                  </div>
+                  <div class="col-span-1" @click="emit('open', policy)">
+                    <Badge
+                      v-if="policy.queue_depth > 0"
+                      :label="String(policy.queue_depth)"
+                      theme="orange"
+                    />
+                    <Badge
+                      v-else
+                      label="0"
+                      theme="gray"
+                      variant="subtle"
                     />
                   </div>
                   <div class="col-span-2 flex items-center">
