@@ -37,6 +37,7 @@ import TeamAssignment from "./TeamAssignment/TeamAssignment.vue";
 import TicketRules from "./TicketRules/TicketRules.vue";
 import SlaEscalations from "./SlaEscalations/SlaEscalations.vue";
 import SkillsCapacity from "./SkillsCapacity/SkillsCapacity.vue";
+import AxeFeatures from "./AxeFeatures/AxeFeatures.vue";
 import { useChannelsStore } from "@/stores/channels";
 import NetworkIcon from "~icons/lucide/network";
 
@@ -51,6 +52,7 @@ const EXTENSION_SECTION_REGISTRY: Record<string, any> = {
   "ticket-rules": markRaw(TicketRules),
   "sla-escalations": markRaw(SlaEscalations),
   "skills-capacity": markRaw(SkillsCapacity),
+  "axe-features": markRaw(AxeFeatures),
 };
 
 export const tabs = computed(() => {
