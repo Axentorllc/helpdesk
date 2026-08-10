@@ -358,6 +358,41 @@
             <label class="text-xs text-ink-gray-5">{{ __("Managers") }}</label>
             <AgentSelector v-model="form.managers" />
           </div>
+          <!-- Required skill -->
+          <div>
+            <FormControl
+              type="select"
+              size="sm"
+              variant="subtle"
+              :label="__('Required skill')"
+              v-model="form.required_skill"
+              :options="skillOptions"
+            />
+          </div>
+          <!-- Skill mode — only when a skill is required -->
+          <div v-if="form.required_skill">
+            <FormControl
+              type="select"
+              size="sm"
+              variant="subtle"
+              :label="__('Skill mode')"
+              v-model="form.skill_mode"
+              :options="skillModeOptions"
+            />
+          </div>
+          <!-- Max open tickets -->
+          <div>
+            <FormControl
+              type="number"
+              size="sm"
+              variant="subtle"
+              :label="__('Max open tickets')"
+              v-model="form.max_open_tickets"
+            />
+            <p class="mt-1 text-xs text-ink-gray-5">
+              {{ __("0 disables the cap. Counts the agent's open assignments across all teams.") }}
+            </p>
+          </div>
         </div>
       </div>
     </template>
@@ -468,6 +503,9 @@ const props = defineProps<{
     overflow_team?: string;
     active_from_time?: string | null;
     active_to_time?: string | null;
+    required_skill?: string;
+    skill_mode?: string;
+    max_open_tickets?: number;
   };
 }>();
 
@@ -592,6 +630,9 @@ const form = reactive({
   overflow_team: props.policy.overflow_team ?? "",
   active_from_time: props.policy.active_from_time?.slice(0, 5) ?? "",
   active_to_time: props.policy.active_to_time?.slice(0, 5) ?? "",
+  required_skill: props.policy.required_skill ?? "",
+  skill_mode: props.policy.skill_mode ?? "Strict",
+  max_open_tickets: props.policy.max_open_tickets ?? 0,
 });
 
 const initialSnapshot = ref(
@@ -626,6 +667,21 @@ const hdTeams = createResource({
   params: { doctype: "HD Team", filters: { disabled: 0 }, limit_page_length: 0 },
   auto: true,
 });
+
+const skillsList = createResource({
+  url: "axe_helpdesk.api.team_assignment.skills_overview",
+  auto: true,
+});
+
+const skillOptions = computed(() => [
+  { label: __("None"), value: "" },
+  ...(skillsList.data?.skills ?? []).map((s: string) => ({ label: s, value: s })),
+]);
+
+const skillModeOptions = [
+  { label: __("Strict — queue if no skilled agent"), value: "Strict" },
+  { label: __("Soft — fall back to team"), value: "Soft" },
+];
 
 const overflowTeamOptions = computed(() => [
   { label: __("None — alert managers only"), value: "" },
@@ -689,6 +745,9 @@ async function save() {
         overflow_team: form.overflow_team || "",
         active_from_time: form.active_from_time || "",
         active_to_time: form.active_to_time || "",
+        required_skill: form.required_skill || "",
+        skill_mode: form.skill_mode,
+        max_open_tickets: Number(form.max_open_tickets) || 0,
       },
     });
     toast.success(__("Policy saved."));
