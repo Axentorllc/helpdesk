@@ -77,6 +77,13 @@
               <span v-if="n.notification_type === 'Unassignment'"
                 >removed you from ticket</span
               >
+              <span
+                v-else-if="
+                  !['Mention', 'Assignment', 'Reaction', 'Reply', 'Unassignment'].includes(
+                    n.notification_type
+                  ) && n.message
+                "
+              >{{ n.message }}</span>
             </span>
             <span class="font-medium text-ink-gray-9"
               >&nbsp{{ n.reference_ticket }}

@@ -177,6 +177,40 @@
 
       <hr class="my-8" />
 
+      <!-- Queue valve -->
+      <div>
+        <div class="flex flex-col gap-1">
+          <span class="text-lg-semibold text-ink-gray-8">{{ __("Queue valve") }}</span>
+          <span class="text-p-sm text-ink-gray-6">
+            {{ __("Re-route or alert when tickets wait in the queue too long. Alerts repeat each valve period while the ticket stays queued.") }}
+          </span>
+        </div>
+        <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <FormControl
+              type="number"
+              size="sm"
+              variant="subtle"
+              :label="__('Valve (minutes)')"
+              v-model="form.queue_valve_minutes"
+            />
+            <p class="mt-1 text-xs text-ink-gray-5">{{ __("0 disables the valve.") }}</p>
+          </div>
+          <div>
+            <FormControl
+              type="select"
+              size="sm"
+              variant="subtle"
+              :label="__('Overflow team')"
+              v-model="form.overflow_team"
+              :options="overflowTeamOptions"
+            />
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-8" />
+
       <!-- Eligibility -->
       <div>
         <div class="flex flex-col gap-1">
@@ -267,6 +301,8 @@ const props = defineProps<{
     managers?: string[];
     assignment_rule?: string;
     distribution?: string;
+    queue_valve_minutes?: number;
+    overflow_team?: string;
   };
 }>();
 
@@ -306,6 +342,8 @@ const form = reactive({
   include_away: Boolean(props.policy.include_away ?? 0),
   assignment_scope: props.policy.assignment_scope ?? "Members and Managers",
   managers: props.policy.managers ? [...props.policy.managers] : [],
+  queue_valve_minutes: props.policy.queue_valve_minutes ?? 0,
+  overflow_team: props.policy.overflow_team ?? "",
 });
 
 const initialSnapshot = ref(
@@ -334,6 +372,19 @@ const scopeOptions = [
   { label: __("Members and Managers"), value: "Members and Managers" },
   { label: __("Members Only"), value: "Members Only" },
 ];
+
+const hdTeams = createResource({
+  url: "frappe.client.get_list",
+  params: { doctype: "HD Team", filters: { disabled: 0 }, limit_page_length: 0 },
+  auto: true,
+});
+
+const overflowTeamOptions = computed(() => [
+  { label: __("None — alert managers only"), value: "" },
+  ...(hdTeams.data ?? [])
+    .filter((t: any) => t.name !== props.policy.team)
+    .map((t: any) => ({ label: t.name, value: t.name })),
+]);
 
 // Condition builder add-condition dropdown
 const conditionDropdownOptions = [
@@ -386,6 +437,8 @@ async function save() {
         include_away: form.include_away ? 1 : 0,
         assignment_scope: form.assignment_scope,
         managers: form.managers,
+        queue_valve_minutes: Number(form.queue_valve_minutes) || 0,
+        overflow_team: form.overflow_team || "",
       },
     });
     toast.success(__("Policy saved."));
