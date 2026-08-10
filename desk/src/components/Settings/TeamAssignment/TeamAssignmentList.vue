@@ -15,15 +15,22 @@
       </p>
     </template>
     <template #header-actions>
-      <Button
-        v-if="teamsWithoutPolicy.length"
-        :label="__('Add')"
-        theme="gray"
-        variant="solid"
-        icon-left="lucide-plus"
-        class="rtl:flex-row-reverse"
-        @click="showAddDialog = true"
-      />
+      <div class="flex items-center gap-2">
+        <Button
+          :label="__('Test routing')"
+          variant="outline"
+          @click="showSimulator = true"
+        />
+        <Button
+          v-if="teamsWithoutPolicy.length"
+          :label="__('Add')"
+          theme="gray"
+          variant="solid"
+          icon-left="lucide-plus"
+          class="rtl:flex-row-reverse"
+          @click="showAddDialog = true"
+        />
+      </div>
     </template>
     <template #content>
       <div
@@ -142,6 +149,9 @@
     </template>
   </SettingsLayoutBase>
 
+  <!-- Routing simulator dialog -->
+  <RoutingSimulator v-model:open="showSimulator" />
+
   <!-- Add policy dialog -->
   <Dialog :title="__('Add Assignment Policy')" v-model:open="showAddDialog">
     <template #default>
@@ -187,12 +197,14 @@ import { DragIcon } from "@/components/icons";
 import SettingsLayoutBase from "@/components/layouts/SettingsLayoutBase.vue";
 import { __ } from "@/translation";
 import NetworkIcon from "~icons/lucide/network";
+import RoutingSimulator from "./RoutingSimulator.vue";
 
 const emit = defineEmits<{
   (e: "open", policy: any): void;
 }>();
 
 const showAddDialog = ref(false);
+const showSimulator = ref(false);
 const addTeam = ref("");
 
 const overview = createResource({
