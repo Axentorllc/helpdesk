@@ -81,6 +81,34 @@
 
       <hr class="my-8" />
 
+      <!-- Active window -->
+      <div>
+        <div class="flex flex-col gap-1">
+          <span class="text-lg-semibold text-ink-gray-8">{{ __("Active window") }}</span>
+          <span class="text-p-sm text-ink-gray-6">
+            {{ __("This policy only routes tickets between these times. Empty = always active; a window ending before it starts spans midnight.") }}
+          </span>
+        </div>
+        <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+          <FormControl
+            type="time"
+            size="sm"
+            variant="subtle"
+            :label="__('Active from')"
+            v-model="form.active_from_time"
+          />
+          <FormControl
+            type="time"
+            size="sm"
+            variant="subtle"
+            :label="__('Active to')"
+            v-model="form.active_to_time"
+          />
+        </div>
+      </div>
+
+      <hr class="my-8" />
+
       <!-- Distribution -->
       <div>
         <div class="flex flex-col gap-1">
@@ -438,6 +466,8 @@ const props = defineProps<{
     distribution?: string;
     queue_valve_minutes?: number;
     overflow_team?: string;
+    active_from_time?: string | null;
+    active_to_time?: string | null;
   };
 }>();
 
@@ -560,6 +590,8 @@ const form = reactive({
   managers: props.policy.managers ? [...props.policy.managers] : [],
   queue_valve_minutes: props.policy.queue_valve_minutes ?? 0,
   overflow_team: props.policy.overflow_team ?? "",
+  active_from_time: props.policy.active_from_time?.slice(0, 5) ?? "",
+  active_to_time: props.policy.active_to_time?.slice(0, 5) ?? "",
 });
 
 const initialSnapshot = ref(
@@ -655,6 +687,8 @@ async function save() {
         managers: form.managers,
         queue_valve_minutes: Number(form.queue_valve_minutes) || 0,
         overflow_team: form.overflow_team || "",
+        active_from_time: form.active_from_time || "",
+        active_to_time: form.active_to_time || "",
       },
     });
     toast.success(__("Policy saved."));

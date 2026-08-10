@@ -120,6 +120,12 @@
                   variant="subtle"
                 />
                 <Badge
+                  v-else-if="row.status === 'skipped_outside_window'"
+                  :label="__('Skipped — outside active window')"
+                  theme="gray"
+                  variant="subtle"
+                />
+                <Badge
                   v-else-if="row.status === 'error'"
                   :label="__('Error')"
                   theme="red"
