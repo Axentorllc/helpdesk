@@ -43,6 +43,15 @@
 
         <!-- Results -->
         <template v-if="results !== null">
+          <!-- Feature-off truth note -->
+          <div
+            v-if="results.routing_enabled === false"
+            class="rounded-md bg-surface-gray-1 border border-outline-gray-2 px-4 py-3"
+          >
+            <span class="text-p-sm text-ink-gray-6">
+              {{ __("Team routing is currently disabled — this shows what would happen once it is enabled.") }}
+            </span>
+          </div>
           <!-- Winner/no-match banner -->
           <div
             v-if="results.winning_team"
@@ -184,6 +193,7 @@ const results = ref<{
     error: string | null;
   }>;
   winning_team: string | null;
+  routing_enabled?: boolean;
 } | null>(null);
 
 function reset() {

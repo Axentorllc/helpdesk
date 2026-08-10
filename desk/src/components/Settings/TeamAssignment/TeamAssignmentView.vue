@@ -115,7 +115,7 @@
             />
           </div>
           <span class="text-p-sm text-ink-gray-6">
-            {{ __("Open tickets per member, live — total across all their teams.") }}
+            {{ __("Open assignments per member, live — total across all their teams.") }}
           </span>
         </div>
         <div class="mt-5 max-w-md">
