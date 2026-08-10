@@ -37,6 +37,7 @@
 
   <SettingsModal v-model="showSettingsModal" />
   <ShortcutsModal v-model="showShortcutsModal" />
+  <MyAbsences v-model="showMyAbsences" />
   <HelpModal
     v-if="showHelpModal"
     v-model="showHelpModal"
@@ -60,6 +61,7 @@
 import HDLogo from "@/assets/logos/HDLogo.vue";
 import { FrappeCloudIcon, InviteCustomer } from "@/components/icons";
 import CustomerPortalPermissionBanner from "@/components/layouts/CustomerPortalPermissionBanner.vue";
+import MyAbsences from "@/components/MyAbsences.vue";
 import ShortcutsModal from "@/components/modals/ShortcutsModal.vue";
 import SettingsModal from "@/components/Settings/SettingsModal.vue";
 import { confirmLoginToFrappeCloud } from "@/composables/fc";
@@ -151,6 +153,7 @@ const themeMenuItem = computed(() => ({
 }));
 
 const isFCSite = ref(window.is_fc_site);
+const showMyAbsences = ref(false);
 
 const customerPortalDropdown = computed(() => [
   {
@@ -197,6 +200,11 @@ const agentPortalDropdown = computed(() => [
     label: __("Shortcuts"),
     icon: h(LucideKeyboard),
     onClick: () => (showShortcutsModal.value = true),
+  },
+  {
+    label: __("My absences"),
+    icon: "lucide-calendar-off",
+    onClick: () => (showMyAbsences.value = true),
   },
   {
     label: __("Settings"),

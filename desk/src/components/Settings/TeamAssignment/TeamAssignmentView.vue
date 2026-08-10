@@ -177,6 +177,77 @@
 
       <hr class="my-8" />
 
+      <!-- Absences -->
+      <div>
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <span class="text-lg-semibold text-ink-gray-8">{{ __("Absences") }}</span>
+            <div class="flex items-center gap-2">
+              <Button
+                :label="__('Add absence')"
+                variant="outline"
+                @click="showAddAbsence = true"
+              />
+              <Button
+                icon="lucide-refresh-cw"
+                variant="ghost"
+                @click="teamAbsences.reload()"
+              />
+            </div>
+          </div>
+          <span class="text-p-sm text-ink-gray-6">
+            {{ __("Upcoming and current absences for this team's members. Absent agents receive no tickets.") }}
+          </span>
+        </div>
+        <div class="mt-5 max-w-md">
+          <div
+            v-if="teamAbsences.loading && !teamAbsences.data"
+            class="flex items-center justify-center py-4"
+          >
+            <LoadingIndicator class="w-4" />
+          </div>
+          <div v-else-if="teamAbsences.error" class="text-p-sm text-ink-gray-5">
+            {{ __("Could not load absences.") }}
+          </div>
+          <div
+            v-else-if="!absenceList.length"
+            class="text-p-sm text-ink-gray-5"
+          >
+            {{ __("No upcoming absences.") }}
+          </div>
+          <div v-else class="flex flex-col gap-2">
+            <div
+              v-for="a in absenceList"
+              :key="a.name"
+              class="flex items-center justify-between group"
+            >
+              <div class="flex flex-col gap-0.5 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-base text-ink-gray-7">{{ a.full_name || a.agent_user }}</span>
+                  <Badge
+                    v-if="a.active"
+                    :label="__('Active now')"
+                    theme="orange"
+                    variant="subtle"
+                  />
+                </div>
+                <span class="text-p-sm text-ink-gray-6">{{ a.from_date }} → {{ a.to_date }}</span>
+                <span v-if="a.note" class="text-p-sm text-ink-gray-5 truncate">{{ a.note }}</span>
+              </div>
+              <Button
+                icon="lucide-trash-2"
+                variant="ghost"
+                theme="gray"
+                class="opacity-0 group-hover:opacity-100 shrink-0"
+                @click="askDeleteAbsence(a)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-8" />
+
       <!-- Queue valve -->
       <div>
         <div class="flex flex-col gap-1">
@@ -263,6 +334,69 @@
       </div>
     </template>
   </SettingsLayoutBase>
+
+  <!-- Delete absence dialog -->
+  <Dialog :title="__('Remove absence')" v-model:open="showDeleteAbsence">
+    <template #default>
+      <p class="text-p-base text-ink-gray-7">
+        {{ __("Remove absence for {0}? This cannot be undone.", [pendingDeleteAbsence?.full_name || pendingDeleteAbsence?.agent_user]) }}
+      </p>
+    </template>
+    <template #actions>
+      <div class="flex gap-2 justify-end">
+        <Button variant="subtle" :label="__('Cancel')" @click="showDeleteAbsence = false" />
+        <Button
+          theme="red"
+          variant="solid"
+          :label="__('Remove')"
+          :loading="deletingAbsence"
+          @click="confirmDeleteAbsence"
+        />
+      </div>
+    </template>
+  </Dialog>
+
+  <!-- Add absence dialog -->
+  <Dialog :title="__('Add absence')" v-model:open="showAddAbsence">
+    <template #default>
+      <div class="flex flex-col gap-4">
+        <FormControl
+          type="select"
+          :label="__('Agent')"
+          v-model="absenceForm.agent"
+          :options="memberOptions"
+        />
+        <FormControl
+          type="date"
+          :label="__('From')"
+          v-model="absenceForm.from_date"
+        />
+        <FormControl
+          type="date"
+          :label="__('To')"
+          v-model="absenceForm.to_date"
+        />
+        <FormControl
+          type="text"
+          :label="__('Note')"
+          v-model="absenceForm.note"
+          :placeholder="__('Optional')"
+        />
+        <p v-if="absenceFormError" class="text-p-sm text-ink-red-4">{{ absenceFormError }}</p>
+      </div>
+    </template>
+    <template #actions>
+      <div class="flex gap-2 justify-end">
+        <Button variant="subtle" :label="__('Cancel')" @click="showAddAbsence = false" />
+        <Button
+          variant="solid"
+          :label="__('Save')"
+          :loading="savingAbsence"
+          @click="confirmAddAbsence"
+        />
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -271,6 +405,7 @@ import {
   Button,
   call,
   createResource,
+  Dialog,
   Dropdown,
   FeatherIcon,
   FormControl,
@@ -319,6 +454,87 @@ const workload = createResource({
 });
 
 const members = computed(() => workload.data?.members ?? []);
+
+const teamAbsences = createResource({
+  url: "axe_helpdesk.api.absences.team_absences",
+  params: { team: props.policy.team },
+  auto: true,
+});
+
+const absenceList = computed(() => teamAbsences.data ?? []);
+
+const memberOptions = computed(() => [
+  { label: __("Select agent"), value: "" },
+  ...members.value.map((m: any) => ({
+    label: m.full_name || m.user,
+    value: m.user,
+  })),
+]);
+
+const showDeleteAbsence = ref(false);
+const deletingAbsence = ref(false);
+const pendingDeleteAbsence = ref<any>(null);
+
+const showAddAbsence = ref(false);
+const savingAbsence = ref(false);
+const absenceForm = reactive({ agent: "", from_date: "", to_date: "", note: "" });
+const absenceFormError = ref("");
+
+function askDeleteAbsence(a: any) {
+  pendingDeleteAbsence.value = a;
+  showDeleteAbsence.value = true;
+}
+
+async function confirmDeleteAbsence() {
+  if (!pendingDeleteAbsence.value) return;
+  deletingAbsence.value = true;
+  try {
+    await call("axe_helpdesk.api.absences.delete_absence", {
+      name: pendingDeleteAbsence.value.name,
+    });
+    showDeleteAbsence.value = false;
+    pendingDeleteAbsence.value = null;
+    teamAbsences.reload();
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Failed to remove absence."));
+  } finally {
+    deletingAbsence.value = false;
+  }
+}
+
+async function confirmAddAbsence() {
+  absenceFormError.value = "";
+  if (!absenceForm.agent || !absenceForm.from_date || !absenceForm.to_date) {
+    absenceFormError.value = __("Agent, From date, and To date are required.");
+    return;
+  }
+  if (absenceForm.to_date < absenceForm.from_date) {
+    absenceFormError.value = __("To date must be on or after From date.");
+    return;
+  }
+  savingAbsence.value = true;
+  try {
+    await call("axe_helpdesk.api.absences.save_absence", {
+      absence: {
+        agent: absenceForm.agent,
+        from_date: absenceForm.from_date,
+        to_date: absenceForm.to_date,
+        note: absenceForm.note,
+      },
+    });
+    showAddAbsence.value = false;
+    absenceForm.agent = "";
+    absenceForm.from_date = "";
+    absenceForm.to_date = "";
+    absenceForm.note = "";
+    teamAbsences.reload();
+    toast.success(__("Absence saved."));
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Failed to save absence."));
+  } finally {
+    savingAbsence.value = false;
+  }
+}
 
 // Parse routing condition JSON from the policy (may be a JSON string or already an array).
 function parseConditionJson(raw: string | any[] | undefined): any[] {
