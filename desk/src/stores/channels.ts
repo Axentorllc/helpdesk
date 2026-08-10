@@ -35,6 +35,12 @@ export interface PanelManifestEntry {
   order?: number;
 }
 
+export interface SettingsSectionManifestEntry {
+  key: string;
+  label: string;
+  icon?: string;
+}
+
 // Icon key -> component. Fork ships channel icons (Chatwoot precedent); unknown keys
 // fall back to the generic comment bubble so a new channel still renders a tab.
 const ICONS: Record<string, Component> = {
@@ -48,20 +54,27 @@ export function channelIcon(key: string): Component {
 export const useChannelsStore = defineStore("channels", () => {
   const channels = ref<ChannelManifestEntry[]>([]);
   const panels = ref<PanelManifestEntry[]>([]);
+  const settings_sections = ref<SettingsSectionManifestEntry[]>([]);
 
   const resource = createResource({
     url: "helpdesk.api.extensions.get_extensions_manifest",
     auto: true,
-    onSuccess(data: { channels?: ChannelManifestEntry[]; panels?: PanelManifestEntry[] }) {
+    onSuccess(data: {
+      channels?: ChannelManifestEntry[];
+      panels?: PanelManifestEntry[];
+      settings_sections?: SettingsSectionManifestEntry[];
+    }) {
       channels.value = data?.channels ?? [];
       panels.value = data?.panels ?? [];
+      settings_sections.value = data?.settings_sections ?? [];
     },
     onError() {
       // Manifest endpoint missing / not an agent — stay empty, UI behaves stock.
       channels.value = [];
       panels.value = [];
+      settings_sections.value = [];
     },
   });
 
-  return { channels, panels, resource };
+  return { channels, panels, settings_sections, resource };
 });

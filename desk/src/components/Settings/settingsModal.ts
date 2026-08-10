@@ -19,9 +19,9 @@ import {
   ERPNextSettingsIcon,
   FieldDependencyIcon,
   PhoneIcon,
+  SlidersIcon,
 } from "@/components/icons";
 import ERPNextIntegrationSettings from "@/components/erpnext-integration/ERPNextIntegrationSettings.vue";
-import { FieldDependencyIcon, PhoneIcon, SlidersIcon } from "@/components/icons";
 import TelephonyPage from "./Telephony/TelephonyPage.vue";
 import { EmailNotifications } from "./EmailNotifications";
 import { __ } from "@/translation";
@@ -33,10 +33,19 @@ import SettingsGear from "~icons/lucide/settings";
 import SavedReplyIcon from "../icons/SavedReplyIcon.vue";
 import ProfilePage from "./Profile/ProfilePage.vue";
 import Preferences from "./Preferences/Preferences.vue";
+import TeamAssignment from "./TeamAssignment/TeamAssignment.vue";
+import { useChannelsStore } from "@/stores/channels";
+import NetworkIcon from "~icons/lucide/network";
 
 export const showSettingsModal = ref(false);
 
 const auth = useAuthStore();
+const channelsStore = useChannelsStore();
+
+// Registry: manifest key → component. Add here when a new extension section ships.
+const EXTENSION_SECTION_REGISTRY: Record<string, any> = {
+  "team-assignment": markRaw(TeamAssignment),
+};
 
 export const tabs = computed(() => {
   const _tabs = [
@@ -133,6 +142,20 @@ export const tabs = computed(() => {
           icon: markRaw(SavedReplyIcon),
           component: markRaw(SavedReplies),
         },
+        // Extension sections contributed via helpdesk_settings_sections hook.
+        // Sections not present in the registry (unknown keys) are silently skipped.
+        ...channelsStore.settings_sections
+          .filter(
+            (s) =>
+              EXTENSION_SECTION_REGISTRY[s.key] &&
+              (auth.isAdmin || auth.isManager)
+          )
+          .map((s) => ({
+            label: __(s.label),
+            icon: markRaw(NetworkIcon),
+            component: EXTENSION_SECTION_REGISTRY[s.key],
+            condition: () => auth.isAdmin || auth.isManager,
+          })),
       ],
     },
     {
@@ -186,7 +209,8 @@ type TabName =
   | "Field Dependencies"
   | "Telephony"
   | "ERPNext"
-  | "Saved Replies";
+  | "Saved Replies"
+  | "Team Assignment";
 
 export const setActiveSettingsTab = (tabName: TabName) => {
   activeTab.value =

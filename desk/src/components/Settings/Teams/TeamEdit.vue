@@ -115,6 +115,7 @@
 import SettingsLayoutBase from "@/components/layouts/SettingsLayoutBase.vue";
 import { useAgentStore } from "@/stores/agent";
 import { assignmentRulesActiveScreen } from "@/stores/assignmentRules";
+import { useChannelsStore } from "@/stores/channels";
 import { useConfigStore } from "@/stores/config";
 import { useUserStore } from "@/stores/user";
 import { __ } from "@/translation";
@@ -130,12 +131,18 @@ import {
 import { computed, h, inject, markRaw, onMounted, ref } from "vue";
 import RenameTeamModal from "./RenameTeamModal.vue";
 import LucideLock from "~icons/lucide/lock";
+import NetworkIcon from "~icons/lucide/network";
 import Settings from "~icons/lucide/settings-2";
 import LucideUnlock from "~icons/lucide/unlock";
 import UserIcon from "~icons/lucide/user";
 import AgentCard from "../AgentCard.vue";
 import { setActiveSettingsTab } from "../settingsModal";
 import AgentSelector from "./components/AgentSelector.vue";
+
+const channelsStore = useChannelsStore();
+const hasTeamAssignmentSection = computed(() =>
+  channelsStore.settings_sections.some((s) => s.key === "team-assignment")
+);
 
 const props = defineProps<{
   teamName: string;
@@ -248,6 +255,17 @@ const options = computed(() => [
       setActiveSettingsTab("Assignment Rules");
     },
   },
+  ...(hasTeamAssignmentSection.value
+    ? [
+        {
+          label: __("Routing & Assignment Policy"),
+          icon: markRaw(NetworkIcon),
+          onClick: () => {
+            setActiveSettingsTab("Team Assignment");
+          },
+        },
+      ]
+    : []),
   {
     label: __("Rename"),
     icon: "lucide-edit-3",

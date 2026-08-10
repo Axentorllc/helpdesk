@@ -53,4 +53,9 @@ def get_extensions_manifest():
         ),
         key=lambda p: p.get("order") or 100,
     )
-    return {"channels": channels, "panels": panels}
+    settings_sections = [
+        {k: v for k, v in s.items() if k not in _STRIP}
+        for s in (frappe.get_hooks("helpdesk_settings_sections") or [])
+        if _entry_enabled(s)
+    ]
+    return {"channels": channels, "panels": panels, "settings_sections": settings_sections}
