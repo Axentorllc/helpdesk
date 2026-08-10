@@ -81,6 +81,11 @@
     @update="ticket.reload()"
   />
   <TicketSubjectModal v-model="showSubjectDialog" />
+  <TransferTicketDialog
+    v-model="showTransferDialog"
+    :ticket-name="ticket.doc?.name"
+    @success="ticket.reload()"
+  />
 </template>
 
 <script setup lang="ts">
@@ -128,8 +133,10 @@ import {
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LucideMerge from "~icons/lucide/merge";
+import LucideArrowRightLeft from "~icons/lucide/arrow-right-left";
 import { IndicatorIcon } from "../icons";
 import TicketSubjectModal from "./TicketSubjectModal.vue";
+import TransferTicketDialog from "./TransferTicketDialog.vue";
 const { isAdmin } = useAuthStore();
 const { $dialog } = globalStore();
 
@@ -159,6 +166,7 @@ const customizations = inject(CustomizationSymbol)!;
 const activities = inject(ActivitiesSymbol)!;
 const showSubjectDialog = ref(false);
 
+const showTransferDialog = ref(false);
 const { notifyTicketUpdate } = useNotifyTicketUpdate(ticket.value?.name);
 const statusDropdown = computed(() => {
   const statuses =
@@ -272,6 +280,12 @@ const defaultActions = computed(() => {
       onClick: () => (showMergeModal.value = true),
     });
   }
+
+  items.push({
+    label: __("Transfer"),
+    icon: LucideArrowRightLeft,
+    onClick: () => (showTransferDialog.value = true),
+  });
 
   return [
     {

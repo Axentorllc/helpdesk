@@ -13,6 +13,17 @@
         />
       </template>
       <template #right-header>
+        <Button
+          v-if="!isCustomerPortal"
+          variant="outline"
+          :label="__('Claim next')"
+          :loading="claimingNext"
+          @click="claimNext"
+        >
+          <template #prefix>
+            <LucideInbox class="h-4 w-4" />
+          </template>
+        </Button>
         <RouterLink
           class="inline-flex"
           :to="{ name: isCustomerPortal ? 'TicketNew' : 'TicketAgentNew' }"
@@ -112,14 +123,29 @@ import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
 import { useEventListener } from "@vueuse/core";
-import { Badge, dayjs, Tooltip, usePageMeta } from "frappe-ui";
+import { Badge, call, dayjs, toast, Tooltip, usePageMeta } from "frappe-ui";
 import { computed, h, onMounted, onScopeDispose, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LayoutToggle from "@/components/LayoutToggle.vue";
 import LucideAlignJustify from "~icons/lucide/align-justify";
+import LucideInbox from "~icons/lucide/inbox";
 
 const router = useRouter();
 const route = useRoute();
+
+const claimingNext = ref(false);
+async function claimNext() {
+  claimingNext.value = true;
+  try {
+    const res = await call("axe_helpdesk.api.ticket_actions.claim_next");
+    toast.success(__("Claimed {0}", [res.subject]));
+    router.push({ name: "TicketAgent", params: { ticketId: res.ticket } });
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Nothing to claim."));
+  } finally {
+    claimingNext.value = false;
+  }
+}
 
 const { splitView } = useLayoutPreference();
 // A ticket detail child is active (nested route on desktop agent).
