@@ -47,6 +47,17 @@ class HelpdeskAssignmentRule(AssignmentRule):
         fall back to the full pool (including Unavailable) only if no one else
         is available, so the ticket is never left unassigned.
         """
+        # Empty user pool (team with no members): leave unassigned instead of
+        # letting stock round-robin/load-balancing crash the whole doc.save
+        # with an IndexError.
+        pool_fieldname = {
+            "Round Robin": "users",
+            "Load Balancing": "users",
+            "Weighted Distribution": "weighted_users",
+        }.get(self.rule)
+        if pool_fieldname is not None and not getattr(self, pool_fieldname, None):
+            return None
+
         # Consult assignment policy extension hook first.
         verdict = get_assignment_candidates(self, doc)
         if verdict is not None:
