@@ -1,9 +1,10 @@
 <template>
   <SettingsLayoutBase>
     <template #title>
-      <h1 class="text-lg-semibold text-ink-gray-8">
-        {{ __("Webchat") }}
-      </h1>
+      <div class="flex items-center gap-2">
+        <h1 class="text-lg-semibold text-ink-gray-8">{{ __("Webchat") }}</h1>
+        <UnsavedBadge :show="isDirty" />
+      </div>
     </template>
     <template #description>
       <p class="text-p-sm max-w-md text-ink-gray-6">
@@ -53,10 +54,11 @@
         />
       </div>
 
-      <div v-else class="flex flex-col gap-8">
-        <!-- Account selector (only when >1 account) -->
-        <div v-if="settings.data.length > 1" class="flex items-center gap-3">
+      <div v-else class="flex flex-col gap-6">
+        <!-- Account bar -->
+        <div class="flex items-center justify-between gap-3">
           <FormControl
+            v-if="settings.data.length > 1"
             type="select"
             :label="__('Account')"
             :options="accountOptions"
@@ -64,261 +66,353 @@
             @update:model-value="selectAccount"
             class="w-64"
           />
+          <span v-else class="text-base font-medium text-ink-gray-8">{{
+            selectedAccount?.label
+          }}</span>
           <Button
             :label="__('Add account')"
             variant="subtle"
             icon-left="lucide-plus"
-            class="mt-5"
-            @click="showAddDialog = true"
-          />
-        </div>
-        <div v-else class="flex items-center justify-between">
-          <span class="text-base text-ink-gray-7">{{ selectedAccount?.label }}</span>
-          <Button
-            :label="__('Add account')"
-            variant="subtle"
-            icon-left="lucide-plus"
+            :class="settings.data.length > 1 ? 'mt-5' : ''"
             @click="showAddDialog = true"
           />
         </div>
 
-        <Divider />
+        <!-- Tabs -->
+        <TabButtons
+          v-model="activeTab"
+          :options="[
+            { label: __('Appearance'), value: 'appearance' },
+            { label: __('Install & security'), value: 'install' },
+          ]"
+        />
 
-        <!-- STEP 1 — Installation -->
-        <section class="flex flex-col gap-4">
-          <div>
-            <h2 class="text-base-semibold text-ink-gray-8">
-              {{ __("1. Paste the snippet") }}
-            </h2>
-            <p class="text-p-sm text-ink-gray-6 mt-1">
-              {{
-                __(
-                  "Add this to the <head> of every page where the widget should appear. The widget only loads from the origins listed below."
-                )
-              }}
-            </p>
-          </div>
-
-          <!-- Basic snippet -->
-          <div class="relative">
-            <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">{{ basicSnippet }}</pre>
-            <Button
-              :label="__('Copy')"
-              variant="ghost"
-              size="sm"
-              class="absolute top-2 right-2"
-              @click="copy(basicSnippet)"
-            />
-          </div>
-
-          <!-- Collapsible: with async identity -->
-          <div>
-            <button
-              class="text-p-sm text-ink-blue-4 hover:underline"
-              @click="showIdentitySnippet = !showIdentitySnippet"
-            >
-              {{ showIdentitySnippet ? __("Hide") : __("Show") }}
-              {{ __("async identity (JS API) variant") }}
-            </button>
-            <div v-if="showIdentitySnippet" class="mt-3 relative">
-              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">{{ identitySnippet }}</pre>
-              <Button
-                :label="__('Copy')"
-                variant="ghost"
-                size="sm"
-                class="absolute top-2 right-2"
-                @click="copy(identitySnippet)"
-              />
+        <!-- ══════════════════ APPEARANCE (WYSIWYG) ══════════════════ -->
+        <div v-show="activeTab === 'appearance'" class="flex gap-8 items-start">
+          <!-- Controls -->
+          <div class="flex flex-col gap-6 w-72 shrink-0">
+            <!-- Brand color -->
+            <div class="flex flex-col gap-2">
+              <label class="text-p-sm text-ink-gray-6">{{ __("Brand color") }}</label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="c in swatches"
+                  :key="c"
+                  type="button"
+                  class="h-7 w-7 rounded-full border border-outline-gray-2 transition"
+                  :class="
+                    appearance.primary_color.toLowerCase() === c
+                      ? 'ring-2 ring-offset-2 ring-ink-gray-5'
+                      : ''
+                  "
+                  :style="{ background: c }"
+                  :aria-label="c"
+                  @click="appearance.primary_color = c"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  v-model="appearance.primary_color"
+                  class="h-9 w-10 rounded border border-outline-gray-2 cursor-pointer shrink-0"
+                  :aria-label="__('Pick color')"
+                />
+                <FormControl
+                  type="text"
+                  v-model="appearance.primary_color"
+                  class="flex-1"
+                  placeholder="#2563eb"
+                />
+              </div>
             </div>
-          </div>
 
-          <!-- Allowed origins editor -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-p-sm text-ink-gray-6">
-              {{ __("Allowed origins (one per line)") }}
-            </label>
-            <textarea
-              v-model="originsValue"
-              rows="4"
-              class="form-textarea rounded border border-outline-gray-2 p-2 text-p-sm font-mono w-full"
-              :placeholder="__('https://yoursite.com')"
-            />
-            <p class="text-p-xs text-ink-gray-5">
-              {{
-                __(
-                  "The widget will only load on pages served from these origins. The frame-ancestors CSP and Referer checks both use this list."
-                )
-              }}
-            </p>
-            <Button
-              :label="__('Save origins')"
-              variant="subtle"
-              :loading="savingOrigins"
-              @click="saveOrigins"
-            />
-          </div>
-        </section>
-
-        <Divider />
-
-        <!-- STEP 2–4 — Verified Identity -->
-        <section class="flex flex-col gap-4">
-          <div>
-            <h2 class="text-base-semibold text-ink-gray-8">
-              {{ __("2–4. Verified identity (optional)") }}
-            </h2>
-            <p class="text-p-sm text-ink-gray-6 mt-1">
-              {{
-                __(
-                  "Skip this block for anonymous / pre-chat flows (public site, CRM site). Enable it for an external logged-in portal so visitors are identified without a Frappe account. Verified identity links chats to the same customer Contact record as WhatsApp — email match first, then phone."
-                )
-              }}
-            </p>
-          </div>
-
-          <!-- Secret status -->
-          <div class="flex items-center justify-between">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-base text-ink-gray-8">{{ __("Verify secret") }}</span>
-              <span class="text-p-sm text-ink-gray-6">
-                {{
-                  selectedAccount?.secret_set
-                    ? __("Set — rotated when compromised.")
-                    : __("Not set — required for verified identity.")
-                }}
-              </span>
-            </div>
-            <Button
-              :label="selectedAccount?.secret_set ? __('Rotate secret') : __('Generate secret')"
-              variant="subtle"
-              :loading="rotating"
-              @click="rotateSecret"
-            />
-          </div>
-
-          <!-- One-time plaintext panel -->
-          <div
-            v-if="revealedSecret"
-            class="rounded border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2"
-          >
-            <p class="text-p-sm text-amber-800 font-medium">
-              {{ __("Copy this secret now — it will not be shown again.") }}
-            </p>
-            <div class="flex items-center gap-2">
-              <code class="flex-1 text-p-sm font-mono break-all text-amber-900">{{ revealedSecret }}</code>
-              <Button
-                :label="__('Copy')"
-                variant="ghost"
-                size="sm"
-                @click="copy(revealedSecret)"
-              />
-            </div>
-            <button
-              class="text-p-xs text-amber-600 hover:underline self-start"
-              @click="revealedSecret = null"
-            >
-              {{ __("Dismiss") }}
-            </button>
-          </div>
-
-          <!-- Step 2: compute hash server-side -->
-          <div class="flex flex-col gap-2">
-            <h3 class="text-base text-ink-gray-8">{{ __("2. Compute the hash server-side") }}</h3>
-            <p class="text-p-sm text-ink-gray-6">
-              {{
-                __(
-                  "Sign the canonical 4-field message with HMAC-SHA256. Use empty strings for omitted fields. Never compute the hash client-side — that exposes the secret."
-                )
-              }}
-            </p>
-            <div class="relative">
-              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ pythonSample }}</pre>
-              <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(pythonSample)" />
-            </div>
-            <div class="relative">
-              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ nodeSample }}</pre>
-              <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(nodeSample)" />
-            </div>
-          </div>
-
-          <!-- Step 3: boot with identity -->
-          <div class="flex flex-col gap-2">
-            <h3 class="text-base text-ink-gray-8">{{ __("3. Boot the widget with identity") }}</h3>
-            <p class="text-p-sm text-ink-gray-6">
-              {{ __("Call axw('boot', …) once after your async login resolves.") }}
-              {{ __("End users need no account on this site.") }}
-            </p>
-            <div class="relative">
-              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ bootSample }}</pre>
-              <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(bootSample)" />
-            </div>
-          </div>
-
-          <!-- Step 4: enforce -->
-          <div class="flex items-center justify-between py-3 border-t border-outline-gray-1">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-base text-ink-gray-8">{{ __("4. Enforce verified identity") }}</span>
-              <span class="text-p-sm text-ink-gray-6">
-                {{
-                  __(
-                    "Reject any bootstrap that presents a user_id or user_hash but fails HMAC verification. Anonymous visitors are unaffected. Enable only after verifying that your server-side hash computation works."
-                  )
-                }}
-              </span>
-            </div>
-            <Switch
-              size="sm"
-              :model-value="Boolean(selectedAccount?.enforce)"
-              :disabled="!selectedAccount?.secret_set"
-              @update:model-value="toggleEnforce"
-            />
-          </div>
-        </section>
-
-        <Divider />
-
-        <!-- Appearance -->
-        <section class="flex flex-col gap-4">
-          <h2 class="text-base-semibold text-ink-gray-8">{{ __("Appearance") }}</h2>
-          <div class="grid grid-cols-2 gap-4">
+            <!-- Title -->
             <FormControl
               :label="__('Widget title')"
               type="text"
               v-model="appearance.widget_title"
               :placeholder="__('Chat')"
             />
+
+            <!-- Greeting -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-p-sm text-ink-gray-6">{{ __("Primary color") }}</label>
-              <input
-                type="color"
-                v-model="appearance.primary_color"
-                class="h-9 w-full rounded border border-outline-gray-2 cursor-pointer"
+              <label class="text-p-sm text-ink-gray-6">{{ __("Greeting message") }}</label>
+              <textarea
+                v-model="appearance.greeting"
+                rows="2"
+                class="form-textarea rounded border border-outline-gray-2 p-2 text-p-sm w-full"
+                :placeholder="__('Hi! How can we help?')"
               />
             </div>
-            <FormControl
-              :label="__('Greeting message')"
-              type="text"
-              v-model="appearance.greeting"
-              :placeholder="__('Hi! How can we help?')"
-            />
-            <FormControl
-              type="select"
-              :label="__('Launcher position')"
-              :options="[{ label: __('Right'), value: 'Right' }, { label: __('Left'), value: 'Left' }]"
-              v-model="appearance.launcher_position"
-            />
-            <FormControl
-              :label="__('Side spacing (px)')"
-              type="number"
-              v-model="appearance.side_spacing"
-            />
-            <FormControl
-              :label="__('Bottom spacing (px)')"
-              type="number"
-              v-model="appearance.bottom_spacing"
-            />
+
+            <!-- Launcher position (segmented) -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm text-ink-gray-6">{{ __("Launcher position") }}</label>
+              <div class="inline-flex rounded-lg bg-surface-gray-2 p-0.5">
+                <button
+                  v-for="pos in ['Left', 'Right']"
+                  :key="pos"
+                  type="button"
+                  class="flex-1 rounded-md px-3 py-1 text-p-sm transition"
+                  :class="
+                    appearance.launcher_position === pos
+                      ? 'bg-surface-white text-ink-gray-8 shadow-sm'
+                      : 'text-ink-gray-6'
+                  "
+                  @click="appearance.launcher_position = pos"
+                >
+                  {{ pos === 'Left' ? __('Left') : __('Right') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Spacing sliders -->
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-p-sm text-ink-gray-6">{{ __("Side spacing") }}</label>
+                <span class="text-p-xs text-ink-gray-5">{{ appearance.side_spacing }}px</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="48"
+                v-model.number="appearance.side_spacing"
+                :style="{ accentColor: appearance.primary_color }"
+                class="w-full cursor-pointer"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-p-sm text-ink-gray-6">{{ __("Bottom spacing") }}</label>
+                <span class="text-p-xs text-ink-gray-5">{{ appearance.bottom_spacing }}px</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="48"
+                v-model.number="appearance.bottom_spacing"
+                :style="{ accentColor: appearance.primary_color }"
+                class="w-full cursor-pointer"
+              />
+            </div>
+
+            <button
+              type="button"
+              class="text-p-xs text-ink-gray-5 hover:underline self-start"
+              @click="resetDefaults"
+            >
+              {{ __("Reset to defaults") }}
+            </button>
           </div>
-        </section>
+
+          <!-- Live preview (sticky) -->
+          <div class="flex-1 min-w-0 sticky top-0">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-p-sm text-ink-gray-6">{{ __("Live preview") }}</span>
+              <TabButtons
+                v-model="previewState"
+                :options="[
+                  { label: __('Closed'), value: 'closed' },
+                  { label: __('Open'), value: 'open' },
+                ]"
+              />
+            </div>
+            <WidgetPreview :appearance="appearance" :state="previewState" />
+          </div>
+        </div>
+
+        <!-- ══════════════════ INSTALL & SECURITY ══════════════════ -->
+        <div v-show="activeTab === 'install'" class="flex flex-col gap-8">
+          <!-- Install -->
+          <section class="flex flex-col gap-4">
+            <div>
+              <h2 class="text-base-semibold text-ink-gray-8">
+                {{ __("1. Paste the snippet") }}
+              </h2>
+              <p class="text-p-sm text-ink-gray-6 mt-1">
+                {{
+                  __(
+                    "Add this to the <head> of every page where the widget should appear. The widget only loads from the origins listed below."
+                  )
+                }}
+              </p>
+            </div>
+
+            <div class="relative">
+              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">{{ basicSnippet }}</pre>
+              <Button
+                :label="__('Copy')"
+                variant="ghost"
+                size="sm"
+                class="absolute top-2 right-2"
+                @click="copy(basicSnippet)"
+              />
+            </div>
+
+            <div>
+              <button
+                class="text-p-sm text-ink-blue-4 hover:underline"
+                @click="showIdentitySnippet = !showIdentitySnippet"
+              >
+                {{ showIdentitySnippet ? __("Hide") : __("Show") }}
+                {{ __("async identity (JS API) variant") }}
+              </button>
+              <div v-if="showIdentitySnippet" class="mt-3 relative">
+                <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">{{ identitySnippet }}</pre>
+                <Button
+                  :label="__('Copy')"
+                  variant="ghost"
+                  size="sm"
+                  class="absolute top-2 right-2"
+                  @click="copy(identitySnippet)"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm text-ink-gray-6">
+                {{ __("Allowed origins (one per line)") }}
+              </label>
+              <textarea
+                v-model="originsValue"
+                rows="4"
+                class="form-textarea rounded border border-outline-gray-2 p-2 text-p-sm font-mono w-full"
+                :placeholder="__('https://yoursite.com')"
+              />
+              <p class="text-p-xs text-ink-gray-5">
+                {{
+                  __(
+                    "The widget will only load on pages served from these origins. The frame-ancestors CSP and Referer checks both use this list."
+                  )
+                }}
+              </p>
+              <Button
+                :label="__('Save origins')"
+                variant="subtle"
+                :loading="savingOrigins"
+                @click="saveOrigins"
+              />
+            </div>
+          </section>
+
+          <Divider />
+
+          <!-- Security -->
+          <section class="flex flex-col gap-4">
+            <div>
+              <h2 class="text-base-semibold text-ink-gray-8">
+                {{ __("2–4. Verified identity (optional)") }}
+              </h2>
+              <p class="text-p-sm text-ink-gray-6 mt-1">
+                {{
+                  __(
+                    "Skip this block for anonymous / pre-chat flows (public site, CRM site). Enable it for an external logged-in portal so visitors are identified without a Frappe account. Verified identity links chats to the same customer Contact record as WhatsApp — email match first, then phone."
+                  )
+                }}
+              </p>
+            </div>
+
+            <!-- Secret status -->
+            <div class="flex items-center justify-between">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-base text-ink-gray-8">{{ __("Verify secret") }}</span>
+                <span class="text-p-sm text-ink-gray-6">
+                  {{
+                    selectedAccount?.secret_set
+                      ? __("Set — rotated when compromised.")
+                      : __("Not set — required for verified identity.")
+                  }}
+                </span>
+              </div>
+              <Button
+                :label="selectedAccount?.secret_set ? __('Rotate secret') : __('Generate secret')"
+                variant="subtle"
+                :loading="rotating"
+                @click="rotateSecret"
+              />
+            </div>
+
+            <!-- One-time plaintext panel -->
+            <div
+              v-if="revealedSecret"
+              class="rounded border border-amber-300 bg-amber-50 p-4 flex flex-col gap-2"
+            >
+              <p class="text-p-sm text-amber-800 font-medium">
+                {{ __("Copy this secret now — it will not be shown again.") }}
+              </p>
+              <div class="flex items-center gap-2">
+                <code class="flex-1 text-p-sm font-mono break-all text-amber-900">{{ revealedSecret }}</code>
+                <Button
+                  :label="__('Copy')"
+                  variant="ghost"
+                  size="sm"
+                  @click="copy(revealedSecret)"
+                />
+              </div>
+              <button
+                class="text-p-xs text-amber-600 hover:underline self-start"
+                @click="revealedSecret = null"
+              >
+                {{ __("Dismiss") }}
+              </button>
+            </div>
+
+            <!-- Hash code — collapsed by default -->
+            <div>
+              <button
+                class="text-p-sm text-ink-blue-4 hover:underline"
+                @click="showHashCode = !showHashCode"
+              >
+                {{ showHashCode ? __("Hide") : __("Show") }}
+                {{ __("server-side hash code (Python / Node)") }}
+              </button>
+              <div v-if="showHashCode" class="mt-3 flex flex-col gap-2">
+                <p class="text-p-sm text-ink-gray-6">
+                  {{
+                    __(
+                      "Return user_hash and exp to the page together — the widget must boot with the exact values you signed. Never compute the hash in the browser."
+                    )
+                  }}
+                </p>
+                <div class="relative">
+                  <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ pythonSample }}</pre>
+                  <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(pythonSample)" />
+                </div>
+                <div class="relative">
+                  <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ nodeSample }}</pre>
+                  <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(nodeSample)" />
+                </div>
+                <p class="text-p-sm text-ink-gray-6 mt-1">
+                  {{ __("Then boot the widget with the signed values (after your async login resolves; end users need no account on this site):") }}
+                </p>
+                <div class="relative">
+                  <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ bootSample }}</pre>
+                  <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(bootSample)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Enforce -->
+            <div class="flex items-center justify-between py-3 border-t border-outline-gray-1">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-base text-ink-gray-8">{{ __("Enforce verified identity") }}</span>
+                <span class="text-p-sm text-ink-gray-6">
+                  {{
+                    __(
+                      "Reject any bootstrap that presents a user_id or user_hash but fails HMAC verification. Anonymous visitors are unaffected. Enable only after verifying that your server-side hash computation works."
+                    )
+                  }}
+                </span>
+              </div>
+              <Switch
+                size="sm"
+                :model-value="Boolean(selectedAccount?.enforce)"
+                :disabled="!selectedAccount?.secret_set"
+                @update:model-value="toggleEnforce"
+              />
+            </div>
+          </section>
+        </div>
       </div>
     </template>
   </SettingsLayoutBase>
@@ -393,13 +487,22 @@ import {
   FormControl,
   LoadingIndicator,
   Switch,
+  TabButtons,
   call,
   createResource,
   toast,
 } from "frappe-ui";
 import SettingsLayoutBase from "@/components/layouts/SettingsLayoutBase.vue";
+import UnsavedBadge from "@/components/UnsavedBadge.vue";
+import WidgetPreview from "./WidgetPreview.vue";
 import { __ } from "@/translation";
 import { copyToClipboard } from "@/utils";
+
+// ── Tabs / preview UI state (presentational only) ──────────────────────────────
+const activeTab = ref("appearance");
+const previewState = ref<"closed" | "open">("open");
+const showHashCode = ref(false);
+const swatches = ["#2563eb", "#16a34a", "#db2777", "#ea580c", "#7c3aed", "#0891b2"];
 
 // ── Resource ─────────────────────────────────────────────────────────────────
 const settings = createResource({
@@ -497,20 +600,12 @@ const identitySnippet = computed(() =>
 );
 
 const pythonSample = `import hmac, hashlib, time
-
-SECRET = "your_verify_secret"
-exp = str(int(time.time()) + 3600)  # optional 1-hour expiry; omit -> ""
-msg = user_id + "\\n" + (email or "") + "\\n" + (phone or "") + "\\n" + exp
-user_hash = hmac.new(SECRET.encode(), msg.encode(), hashlib.sha256).hexdigest()
-# Return BOTH to the page: {"user_hash": user_hash, "exp": exp}`;
+exp = str(int(time.time()) + 3600)  # or "" to skip expiry
+user_hash = hmac.new(SECRET.encode(), f"{user_id}\\n{email or ''}\\n{phone or ''}\\n{exp}".encode(), hashlib.sha256).hexdigest()`;
 
 const nodeSample = `const crypto = require('crypto');
-
-const SECRET = 'your_verify_secret';
-const exp = String(Math.floor(Date.now() / 1000) + 3600); // optional; omit -> ''
-const msg = [user_id, email || '', phone || '', exp].join('\\n');
-const user_hash = crypto.createHmac('sha256', SECRET).update(msg).digest('hex');
-// Return BOTH to the page: { user_hash, exp }`;
+const exp = String(Math.floor(Date.now() / 1000) + 3600); // or '' to skip expiry
+const user_hash = crypto.createHmac('sha256', SECRET).update([user_id, email || '', phone || '', exp].join('\\n')).digest('hex');`;
 
 const bootSample = `axw('boot', {
   user_id: '123',
@@ -578,14 +673,16 @@ async function toggleEnforce(val: boolean) {
 }
 
 // ── Appearance ────────────────────────────────────────────────────────────────
-const appearance = ref({
-  widget_title: "",
+const APPEARANCE_DEFAULTS = {
+  widget_title: "Chat",
   primary_color: "#2563eb",
   greeting: "",
   launcher_position: "Right",
   side_spacing: 20,
   bottom_spacing: 20,
-});
+};
+
+const appearance = ref({ ...APPEARANCE_DEFAULTS, widget_title: "" });
 const appearanceOriginal = ref({ ...appearance.value });
 const saving = ref(false);
 
@@ -609,6 +706,11 @@ function syncAppearanceFromAccount() {
 }
 
 watch(selectedAccount, syncAppearanceFromAccount, { immediate: true });
+
+// Reset the live form to widget defaults (dirty-tracked; does not auto-save).
+function resetDefaults() {
+  appearance.value = { ...APPEARANCE_DEFAULTS };
+}
 
 async function saveAppearance() {
   if (!selectedAccount.value) return;
