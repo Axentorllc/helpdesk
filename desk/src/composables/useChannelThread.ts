@@ -34,6 +34,8 @@ export interface ChannelConversation {
   window_open: boolean;
   window_expires_at: string | null;
   last_inbound_at: string | null;
+  // Contact attributed from a typed (unverified) email/phone, not HMAC-verified.
+  identity_unverified?: boolean;
 }
 
 export interface ChannelThread {

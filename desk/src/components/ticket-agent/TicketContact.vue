@@ -6,16 +6,24 @@
       size="3xl"
     />
     <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-      <Tooltip :text="contact.data?.name || contact.data?.email_id">
-        <div class="flex min-w-0 items-center gap-1.5 w-fit max-w-[65%]">
-          <p
-            class="min-h-[1lh] cursor-pointer truncate text-lg font-medium text-ink-gray-7 hover:text-ink-gray-9"
-            @click="openContact(contact.data?.name)"
-          >
-            {{ contact.data?.name || contact.data?.email_id }}
-          </p>
-        </div>
-      </Tooltip>
+      <div class="flex min-w-0 items-center gap-1.5">
+        <Tooltip :text="contact.data?.name || contact.data?.email_id">
+          <div class="flex min-w-0 items-center gap-1.5 w-fit max-w-[65%]">
+            <p
+              class="min-h-[1lh] cursor-pointer truncate text-lg font-medium text-ink-gray-7 hover:text-ink-gray-9"
+              @click="openContact(contact.data?.name)"
+            >
+              {{ contact.data?.name || contact.data?.email_id }}
+            </p>
+          </div>
+        </Tooltip>
+        <Tooltip
+          v-if="identityUnverified"
+          :text="__('This contact was attributed from a typed email/phone and is not verified. Confirm identity before sharing account details.')"
+        >
+          <Badge :label="__('Unverified')" variant="subtle" theme="orange" size="sm" />
+        </Tooltip>
+      </div>
       <div class="flex items-center gap-1 text-p-sm text-ink-gray-6">
         <p
           class="cursor-copy transition-colors hover:text-ink-gray-8"
@@ -56,7 +64,7 @@ import { useTelephonyStore } from "@/stores/telephony";
 import { useUserStore } from "@/stores/user";
 import { TicketContactSymbol, TicketSymbol } from "@/types";
 import { copyToClipboard, openContact } from "@/utils";
-import { Avatar, Button, Tooltip } from "frappe-ui";
+import { Avatar, Badge, Button, Tooltip } from "frappe-ui";
 import { storeToRefs } from "pinia";
 import { computed, inject, ref } from "vue";
 import PhoneIcon from "../icons/PhoneIcon.vue";
@@ -93,6 +101,13 @@ const viaLabel = computed(() => {
     ? __("via Portal")
     : __("via Email");
 });
+
+// A typed (unverified) email/phone attributed this contact — flag it for the agent.
+const identityUnverified = computed(() =>
+  channelThreads.value.some(
+    (c) => c.thread.conversation.value?.identity_unverified === true
+  )
+);
 const contactImage = computed(() => {
   if (!contact.value?.data) return "";
   const email = contact.value?.data?.email_id ?? "";

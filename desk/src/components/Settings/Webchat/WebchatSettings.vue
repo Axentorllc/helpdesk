@@ -196,6 +196,39 @@
               />
             </div>
 
+            <!-- Pre-chat / identification -->
+            <div class="flex flex-col gap-3 pt-2 border-t border-outline-gray-1">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-p-sm text-ink-gray-6">{{ __("Pre-chat form") }}</label>
+                <FormControl
+                  type="select"
+                  :options="[
+                    { label: __('Off'), value: 'Off' },
+                    { label: __('Optional'), value: 'Optional' },
+                    { label: __('Required'), value: 'Required' },
+                  ]"
+                  v-model="appearance.pre_chat"
+                />
+                <p class="text-p-xs text-ink-gray-5">
+                  {{ __("Ask visitors to identify themselves before chatting. A typed email/phone links or creates a Contact (marked unverified).") }}
+                </p>
+              </div>
+              <label
+                v-if="appearance.pre_chat !== 'Off'"
+                class="flex items-center gap-2 text-p-sm text-ink-gray-7"
+              >
+                <input type="checkbox" v-model="appearance.pre_chat_collect_email" />
+                {{ __("Collect email") }}
+              </label>
+              <label
+                v-if="appearance.pre_chat !== 'Off'"
+                class="flex items-center gap-2 text-p-sm text-ink-gray-7"
+              >
+                <input type="checkbox" v-model="appearance.pre_chat_collect_phone" />
+                {{ __("Collect phone") }}
+              </label>
+            </div>
+
             <button
               type="button"
               class="text-p-xs text-ink-gray-5 hover:underline self-start"
@@ -680,6 +713,9 @@ const APPEARANCE_DEFAULTS = {
   launcher_position: "Right",
   side_spacing: 20,
   bottom_spacing: 20,
+  pre_chat: "Optional",
+  pre_chat_collect_email: true,
+  pre_chat_collect_phone: false,
 };
 
 const appearance = ref({ ...APPEARANCE_DEFAULTS, widget_title: "" });
@@ -700,6 +736,9 @@ function syncAppearanceFromAccount() {
     launcher_position: a.launcher_position ?? "Right",
     side_spacing: a.side_spacing ?? 20,
     bottom_spacing: a.bottom_spacing ?? 20,
+    pre_chat: a.pre_chat ?? "Optional",
+    pre_chat_collect_email: a.pre_chat_collect_email ?? true,
+    pre_chat_collect_phone: a.pre_chat_collect_phone ?? false,
   };
   appearance.value = { ...snap };
   appearanceOriginal.value = { ...snap };
