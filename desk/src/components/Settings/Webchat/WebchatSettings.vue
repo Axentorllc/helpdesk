@@ -531,6 +531,14 @@ import WidgetPreview from "./WidgetPreview.vue";
 import { __ } from "@/translation";
 import { copyToClipboard } from "@/utils";
 
+// Reuse note: this component + WidgetPreview.vue are portable to any Frappe SPA.
+// Two seams to change when porting (e.g. to Frappe CRM): (1) WEBCHAT_API below →
+// point at that app's gated wrapper (e.g. "crm.api_webchat"); (2) the
+// SettingsLayoutBase import path (CRM ships an identical-API layout). The neutral
+// account CRUD lives once in axon (axon.axon_webchat.api); each SPA calls its own
+// gated wrapper of the same shape. copyToClipboard / __ / frappe-ui resolve under @/.
+const WEBCHAT_API = "axon_helpdesk.api_webchat";
+
 // ── Tabs / preview UI state (presentational only) ──────────────────────────────
 const activeTab = ref("appearance");
 const previewState = ref<"closed" | "open">("open");
@@ -539,7 +547,7 @@ const swatches = ["#2563eb", "#16a34a", "#db2777", "#ea580c", "#7c3aed", "#0891b
 
 // ── Resource ─────────────────────────────────────────────────────────────────
 const settings = createResource({
-  url: "axon_helpdesk.api_webchat.get_webchat_settings",
+  url: `${WEBCHAT_API}.get_webchat_settings`,
   method: "POST", // ponytail: POST required — frappe-ui GET-only trap
   auto: true,
 });
@@ -589,7 +597,7 @@ async function saveOrigins() {
   if (!selectedAccount.value) return;
   savingOrigins.value = true;
   try {
-    await call("axon_helpdesk.api_webchat.update_origins", {
+    await call(`${WEBCHAT_API}.update_origins`, {
       account: selectedAccount.value.name,
       allowed_origins: originsValue.value,
     });
@@ -676,7 +684,7 @@ async function doRotate() {
   if (!selectedAccount.value) return;
   rotating.value = true;
   try {
-    const result = await call("axon_helpdesk.api_webchat.rotate_verify_secret", {
+    const result = await call(`${WEBCHAT_API}.rotate_verify_secret`, {
       account: selectedAccount.value.name,
     });
     revealedSecret.value = result.secret;
@@ -694,7 +702,7 @@ async function toggleEnforce(val: boolean) {
   const prev = selectedAccount.value.enforce;
   selectedAccount.value.enforce = val; // optimistic
   try {
-    await call("axon_helpdesk.api_webchat.set_enforce", {
+    await call(`${WEBCHAT_API}.set_enforce`, {
       account: selectedAccount.value.name,
       enabled: val ? 1 : 0,
     });
@@ -755,7 +763,7 @@ async function saveAppearance() {
   if (!selectedAccount.value) return;
   saving.value = true;
   try {
-    await call("axon_helpdesk.api_webchat.update_appearance", {
+    await call(`${WEBCHAT_API}.update_appearance`, {
       account: selectedAccount.value.name,
       ...appearance.value,
     });
@@ -781,7 +789,7 @@ async function createAccount() {
   }
   creating.value = true;
   try {
-    const created = await call("axon_helpdesk.api_webchat.create_webchat_account", {
+    const created = await call(`${WEBCHAT_API}.create_webchat_account`, {
       label: newAccount.value.label,
       allowed_origins: newAccount.value.allowed_origins,
     });

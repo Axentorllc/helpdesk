@@ -59,6 +59,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+// Reuse: dependency-free (imports only vue; inline styles, no app utils) — copy-paste
+// portable to any Frappe SPA (e.g. Frappe CRM) with zero edits.
 // ponytail: presentational mock, not the real /webchat iframe. Mirrors
 // webchat.html's load-bearing tokens (primary usage, 12px msg bubbles, 56px
 // launcher, header layout, chat SVG glyph). It can drift if webchat.html
