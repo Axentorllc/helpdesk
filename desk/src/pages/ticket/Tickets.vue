@@ -94,6 +94,11 @@
       v-model="viewDialogConfig"
       @update="onViewModalUpdate"
     />
+    <BulkEditModal
+      v-model="showBulkEditModal"
+      :selections="listSelections"
+      @success="reset(true)"
+    />
     <BulkReplyModal
       v-model="showBulkReplyModal"
       :selections="listSelections"
@@ -107,6 +112,7 @@ import { LayoutHeader, ListViewBuilder } from "@/components";
 import { TicketIcon } from "@/components/icons";
 import IndicatorIcon from "@/components/icons/IndicatorIcon.vue";
 import TicketPriority from "@/components/TicketPriority.vue";
+import BulkEditModal from "@/components/ticket-agent/BulkEditModal.vue";
 import BulkReplyModal from "@/components/ticket-agent/BulkReplyModal.vue";
 import ExportModal from "@/components/ticket/ExportModal.vue";
 import ViewBreadcrumbs from "@/components/ViewBreadcrumbs.vue";
@@ -221,8 +227,18 @@ const { getStatus } = useTicketStatusStore();
 const listSelections = ref(new Set());
 
 const showBulkReplyModal = ref(false);
+const showBulkEditModal = ref(false);
 
 const selectBannerActions = [
+  {
+    label: __("Edit"),
+    icon: "lucide-pencil",
+    onClick: (selections: Set<string>) => {
+      listSelections.value = new Set(selections);
+      showBulkEditModal.value = true;
+    },
+    condition: () => !isCustomerPortal.value,
+  },
   {
     label: __("Bulk Reply"),
     icon: "corner-up-left",
