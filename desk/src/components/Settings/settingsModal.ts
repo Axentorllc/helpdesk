@@ -38,6 +38,7 @@ import TicketRules from "./TicketRules/TicketRules.vue";
 import SlaEscalations from "./SlaEscalations/SlaEscalations.vue";
 import SkillsCapacity from "./SkillsCapacity/SkillsCapacity.vue";
 import AxeFeatures from "./AxeFeatures/AxeFeatures.vue";
+import WebchatSettings from "./Webchat/WebchatSettings.vue";
 import { useChannelsStore } from "@/stores/channels";
 import NetworkIcon from "~icons/lucide/network";
 
@@ -53,6 +54,7 @@ const EXTENSION_SECTION_REGISTRY: Record<string, any> = {
   "sla-escalations": markRaw(SlaEscalations),
   "skills-capacity": markRaw(SkillsCapacity),
   "axe-features": markRaw(AxeFeatures),
+  "webchat": markRaw(WebchatSettings),
 };
 
 export const tabs = computed(() => {
@@ -218,7 +220,8 @@ type TabName =
   | "Telephony"
   | "ERPNext"
   | "Saved Replies"
-  | "Team Assignment";
+  | "Team Assignment"
+  | "Webchat";
 
 export const setActiveSettingsTab = (tabName: TabName) => {
   activeTab.value =
