@@ -14,7 +14,7 @@
       </template>
       <template #right-header>
         <Button
-          v-if="!isCustomerPortal"
+          v-if="!isCustomerPortal && claimAvailable.data?.available"
           variant="outline"
           :label="__('Claim next')"
           :loading="claimingNext"
@@ -123,7 +123,7 @@ import { __ } from "@/translation";
 import { View } from "@/types";
 import { isCustomerPortal, shortDuration } from "@/utils";
 import { useEventListener } from "@vueuse/core";
-import { Badge, call, dayjs, toast, Tooltip, usePageMeta } from "frappe-ui";
+import { Badge, call, createResource, dayjs, toast, Tooltip, usePageMeta } from "frappe-ui";
 import { computed, h, onMounted, onScopeDispose, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LayoutToggle from "@/components/LayoutToggle.vue";
@@ -132,6 +132,13 @@ import LucideInbox from "~icons/lucide/inbox";
 
 const router = useRouter();
 const route = useRoute();
+
+// Visibility probe: button renders only when queueing (assignment_policy) is
+// on; a request error (e.g. axe_helpdesk absent) leaves data unset → hidden.
+const claimAvailable = createResource({
+  url: "axe_helpdesk.api.ticket_actions.claim_available",
+  auto: !isCustomerPortal.value,
+});
 
 const claimingNext = ref(false);
 async function claimNext() {
