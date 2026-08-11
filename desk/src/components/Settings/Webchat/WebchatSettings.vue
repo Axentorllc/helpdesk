@@ -229,6 +229,167 @@
               </label>
             </div>
 
+            <!-- Home background color + gradient -->
+            <div class="flex flex-col gap-2 pt-2 border-t border-outline-gray-1">
+              <label class="text-p-sm text-ink-gray-6">{{ __("Home background color") }}</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  v-model="appearance.home_background_color"
+                  class="h-9 w-10 rounded border border-outline-gray-2 cursor-pointer shrink-0"
+                  :aria-label="__('Pick home background color')"
+                />
+                <FormControl
+                  type="text"
+                  v-model="appearance.home_background_color"
+                  class="flex-1"
+                  placeholder="#1e3a5f"
+                />
+              </div>
+              <label class="text-p-sm text-ink-gray-6">{{ __("Gradient end color") }}</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  v-model="appearance.home_background_gradient_color"
+                  class="h-9 w-10 rounded border border-outline-gray-2 cursor-pointer shrink-0"
+                  :aria-label="__('Pick gradient end color')"
+                />
+                <FormControl
+                  type="text"
+                  v-model="appearance.home_background_gradient_color"
+                  class="flex-1"
+                  placeholder="#2563eb"
+                />
+                <button
+                  v-if="appearance.home_background_gradient_color"
+                  type="button"
+                  class="text-p-xs text-ink-gray-5 hover:underline shrink-0"
+                  @click="appearance.home_background_gradient_color = ''"
+                >
+                  {{ __("Clear / solid") }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Header text color (segmented) -->
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm text-ink-gray-6">{{ __("Header text color") }}</label>
+              <div class="inline-flex rounded-lg bg-surface-gray-2 p-0.5">
+                <button
+                  v-for="col in ['White', 'Black']"
+                  :key="col"
+                  type="button"
+                  class="flex-1 rounded-md px-3 py-1 text-p-sm transition"
+                  :class="
+                    appearance.header_text_color === col
+                      ? 'bg-surface-white text-ink-gray-8 shadow-sm'
+                      : 'text-ink-gray-6'
+                  "
+                  @click="appearance.header_text_color = col"
+                >
+                  {{ col === 'White' ? __('White') : __('Black') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Tagline -->
+            <FormControl
+              :label="__('Tagline')"
+              type="text"
+              v-model="appearance.tagline"
+              :placeholder="__('Typically replies in a few minutes')"
+            />
+
+            <!-- Reply expectation text -->
+            <FormControl
+              :label="__('Reply time text')"
+              type="text"
+              v-model="appearance.reply_expectation_text"
+              :placeholder="__('We usually reply in a few minutes')"
+            />
+
+            <!-- Logo + teammate avatars -->
+            <div class="flex flex-col gap-3 pt-2 border-t border-outline-gray-1">
+              <label class="text-p-sm text-ink-gray-6">{{ __("Logo & avatars") }}</label>
+              <div
+                v-for="uploader in imageUploaders"
+                :key="uploader.key"
+                class="flex items-center gap-3"
+              >
+                <img
+                  v-if="appearance[uploader.key]"
+                  :src="appearance[uploader.key]"
+                  class="h-9 w-9 rounded object-cover border border-outline-gray-2 shrink-0"
+                  :alt="uploader.label"
+                />
+                <div
+                  v-else
+                  class="h-9 w-9 rounded border border-outline-gray-2 bg-surface-gray-2 shrink-0"
+                />
+                <span class="text-p-sm text-ink-gray-7 flex-1">{{ uploader.label }}</span>
+                <FileUploader
+                  :fileTypes="['image/*']"
+                  :uploadArgs="{ private: false }"
+                  @success="(file) => (appearance[uploader.key] = file.file_url)"
+                >
+                  <template #default="{ openFileSelector, uploading }">
+                    <Button
+                      :label="uploading ? __('Uploading…') : appearance[uploader.key] ? __('Change') : __('Upload')"
+                      variant="subtle"
+                      size="sm"
+                      :loading="uploading"
+                      @click="openFileSelector"
+                    />
+                  </template>
+                </FileUploader>
+                <button
+                  v-if="appearance[uploader.key]"
+                  type="button"
+                  class="text-p-xs text-ink-gray-5 hover:underline shrink-0"
+                  @click="appearance[uploader.key] = ''"
+                >
+                  {{ __("Remove") }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Toggles: sound, help space, read receipts -->
+            <div class="flex flex-col gap-0 pt-2 border-t border-outline-gray-1">
+              <div class="flex items-center justify-between py-3">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-base text-ink-gray-8">{{ __("Sound alerts") }}</span>
+                  <span class="text-p-sm text-ink-gray-6">{{ __("Play a chime when a new message arrives while the widget is closed.") }}</span>
+                </div>
+                <Switch
+                  size="sm"
+                  :model-value="Boolean(appearance.sound_enabled)"
+                  @update:model-value="(v) => (appearance.sound_enabled = v ? 1 : 0)"
+                />
+              </div>
+              <div class="flex items-center justify-between py-3 border-t border-outline-gray-1">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-base text-ink-gray-8">{{ __("Help space") }}</span>
+                  <span class="text-p-sm text-ink-gray-6">{{ __("Show a Help tab in the widget so visitors can search your knowledge base.") }}</span>
+                </div>
+                <Switch
+                  size="sm"
+                  :model-value="Boolean(appearance.enable_help_space)"
+                  @update:model-value="(v) => (appearance.enable_help_space = v ? 1 : 0)"
+                />
+              </div>
+              <div class="flex items-center justify-between py-3 border-t border-outline-gray-1">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-base text-ink-gray-8">{{ __("Show agent read receipts") }}</span>
+                  <span class="text-p-sm text-ink-gray-6">{{ __('Display a "Seen" indicator to visitors when your team has read their message.') }}</span>
+                </div>
+                <Switch
+                  size="sm"
+                  :model-value="Boolean(appearance.show_agent_read_receipts)"
+                  @update:model-value="(v) => (appearance.show_agent_read_receipts = v ? 1 : 0)"
+                />
+              </div>
+            </div>
+
             <button
               type="button"
               class="text-p-xs text-ink-gray-5 hover:underline self-start"
@@ -393,7 +554,7 @@
             <!-- Hash code — collapsed by default -->
             <div>
               <button
-                class="text-p-sm text-ink-blue-4 hover:underline"
+                class="text-p-sm text-ink-gray-9 hover:underline"
                 @click="showHashCode = !showHashCode"
               >
                 {{ showHashCode ? __("Hide") : __("Show") }}
@@ -517,6 +678,7 @@ import {
   Button,
   Divider,
   Dialog,
+  FileUploader,
   FormControl,
   LoadingIndicator,
   Switch,
@@ -724,6 +886,18 @@ const APPEARANCE_DEFAULTS = {
   pre_chat: "Optional",
   pre_chat_collect_email: true,
   pre_chat_collect_phone: false,
+  home_background_color: "",
+  home_background_gradient_color: "",
+  header_text_color: "White",
+  tagline: "",
+  reply_expectation_text: "",
+  logo: "",
+  avatar_image_1: "",
+  avatar_image_2: "",
+  avatar_image_3: "",
+  show_agent_read_receipts: 0,
+  enable_help_space: 0,
+  sound_enabled: 1,
 };
 
 const appearance = ref({ ...APPEARANCE_DEFAULTS, widget_title: "" });
@@ -747,6 +921,18 @@ function syncAppearanceFromAccount() {
     pre_chat: a.pre_chat ?? "Optional",
     pre_chat_collect_email: a.pre_chat_collect_email ?? true,
     pre_chat_collect_phone: a.pre_chat_collect_phone ?? false,
+    home_background_color: a.home_background_color ?? "",
+    home_background_gradient_color: a.home_background_gradient_color ?? "",
+    header_text_color: a.header_text_color ?? "White",
+    tagline: a.tagline ?? "",
+    reply_expectation_text: a.reply_expectation_text ?? "",
+    logo: a.logo ?? "",
+    avatar_image_1: a.avatar_image_1 ?? "",
+    avatar_image_2: a.avatar_image_2 ?? "",
+    avatar_image_3: a.avatar_image_3 ?? "",
+    show_agent_read_receipts: a.show_agent_read_receipts ?? 0,
+    enable_help_space: a.enable_help_space ?? 0,
+    sound_enabled: a.sound_enabled ?? 1,
   };
   appearance.value = { ...snap };
   appearanceOriginal.value = { ...snap };
@@ -776,6 +962,14 @@ async function saveAppearance() {
     saving.value = false;
   }
 }
+
+// Image uploader configs — drives the v-for in the logo/avatar block.
+const imageUploaders = [
+  { key: "logo", label: __("Logo") },
+  { key: "avatar_image_1", label: __("Teammate avatar 1") },
+  { key: "avatar_image_2", label: __("Teammate avatar 2") },
+  { key: "avatar_image_3", label: __("Teammate avatar 3") },
+] as const;
 
 // ── Create account ────────────────────────────────────────────────────────────
 const showAddDialog = ref(false);

@@ -5,7 +5,7 @@
       <span></span><span></span><span></span>
     </div>
 
-    <!-- Closed: 56px launcher circle in the configured corner -->
+    <!-- Closed: 60px launcher circle in the configured corner -->
     <div
       class="wp-launcher"
       :class="isLeft ? 'wp-left' : 'wp-right'"
@@ -49,7 +49,7 @@
         <div class="wp-msg wp-out">Hi 👋</div>
       </div>
       <div class="wp-composer">
-        <div class="wp-input">Type a message…</div>
+        <div class="wp-input">Write a message…</div>
         <div class="wp-send">Send</div>
       </div>
     </div>
@@ -109,12 +109,12 @@ const cornerStyle = computed(() => ({
   background: #cbcfd6;
 }
 
-/* ── Launcher (closed) — 56px circle, primary bg, white 26px glyph ── */
+/* ── Launcher (closed) — 60px circle, primary bg, white 28px glyph ── */
 .wp-launcher {
   position: absolute;
   bottom: var(--wp-bottom, 20px);
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--wp-primary, #2563eb);
   color: #fff;
@@ -130,8 +130,8 @@ const cornerStyle = computed(() => ({
   left: var(--wp-side, 20px);
 }
 .wp-launcher svg {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
 }
 .wp-launcher[data-open="true"] {
   opacity: 0;
