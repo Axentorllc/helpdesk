@@ -10,7 +10,7 @@
       class="wp-launcher"
       :class="isLeft ? 'wp-left' : 'wp-right'"
       :style="cornerStyle"
-      :data-open="state === 'open'"
+      :data-open="state !== 'closed'"
       aria-hidden="true"
     >
       <!-- Exact .axon-ico-open glyph from axon/www/webchat/widget.js -->
@@ -28,19 +28,19 @@
       </svg>
     </div>
 
-    <!-- Open: panel docked to the same corner, mirrors webchat.html -->
+    <!-- Open (Chat): panel docked to the same corner, mirrors webchat.html -->
     <div
       class="wp-panel"
       :class="isLeft ? 'wp-left' : 'wp-right'"
       :style="cornerStyle"
-      :data-open="state === 'open'"
+      :data-open="state === 'chat'"
     >
-      <div class="wp-header">
+      <div class="wp-header" :style="{ background: primaryColor }">
         <div class="wp-title-row">
           <span class="wp-dot"></span>
           <span class="wp-title">{{ appearance.widget_title || "Chat" }}</span>
         </div>
-        <div class="wp-subtitle">We usually reply within a few minutes.</div>
+        <div class="wp-subtitle">{{ replyText }}</div>
       </div>
       <div class="wp-log">
         <div class="wp-msg wp-in">
@@ -51,6 +51,40 @@
       <div class="wp-composer">
         <div class="wp-input">Write a message…</div>
         <div class="wp-send">Send</div>
+      </div>
+    </div>
+
+    <!-- Home: branded header + "Send us a message" card, mirrors the widget's Home space -->
+    <div
+      class="wp-panel"
+      :class="isLeft ? 'wp-left' : 'wp-right'"
+      :style="cornerStyle"
+      :data-open="state === 'home'"
+    >
+      <div class="wp-home-header" :style="headerStyle">
+        <img v-if="appearance.logo" :src="appearance.logo" class="wp-logo" alt="" />
+        <div class="wp-greeting">{{ appearance.greeting || "Hi! How can we help?" }}</div>
+        <div v-if="appearance.tagline" class="wp-tagline">{{ appearance.tagline }}</div>
+      </div>
+      <div class="wp-home-body">
+        <div class="wp-card">
+          <div class="wp-card-top">
+            <div class="wp-card-text">
+              <div class="wp-card-title">Send us a message</div>
+              <div class="wp-card-reply">{{ replyText }}</div>
+            </div>
+            <div v-if="avatars.length" class="wp-avatars">
+              <img
+                v-for="(a, i) in avatars"
+                :key="i"
+                :src="a"
+                class="wp-avatar"
+                alt=""
+              />
+            </div>
+          </div>
+          <div class="wp-card-cta" :style="{ background: primaryColor }">Start a conversation</div>
+        </div>
       </div>
     </div>
   </div>
@@ -67,14 +101,36 @@ import { computed } from "vue";
 // restyles — deep parity is not the goal (Intercom's own preview is a mock).
 const props = defineProps<{
   appearance: Record<string, any>;
-  state: "closed" | "open";
+  state: "closed" | "chat" | "home";
 }>();
 
 const isLeft = computed(() => props.appearance.launcher_position === "Left");
+const primaryColor = computed(() => props.appearance.primary_color || "#2563eb");
+const replyText = computed(
+  () => props.appearance.reply_expectation_text || "We usually reply within a few minutes."
+);
+const avatars = computed(() =>
+  [
+    props.appearance.avatar_image_1,
+    props.appearance.avatar_image_2,
+    props.appearance.avatar_image_3,
+  ].filter(Boolean)
+);
+
+// Header background: gradient when a 2nd color is set, else solid home color, else primary.
+// Text: White→#fff / Black→#111.
+const headerStyle = computed(() => {
+  const base = props.appearance.home_background_color || primaryColor.value;
+  const grad = props.appearance.home_background_gradient_color;
+  return {
+    background: grad ? `linear-gradient(135deg, ${base}, ${grad})` : base,
+    color: props.appearance.header_text_color === "Black" ? "#111" : "#fff",
+  };
+});
 
 // Corner offsets + primary color as inline CSS vars, live from `appearance`.
 const cornerStyle = computed(() => ({
-  "--wp-primary": props.appearance.primary_color || "#2563eb",
+  "--wp-primary": primaryColor.value,
   "--wp-side": `${props.appearance.side_spacing ?? 20}px`,
   "--wp-bottom": `${props.appearance.bottom_spacing ?? 20}px`,
 }));
@@ -172,10 +228,16 @@ const cornerStyle = computed(() => ({
 }
 
 .wp-header {
-  background: var(--wp-primary, #2563eb);
   color: #fff;
   padding: 12px 16px;
   font-weight: 600;
+}
+.wp-logo {
+  height: 24px;
+  max-width: 120px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  display: block;
 }
 .wp-title-row {
   display: flex;
@@ -247,6 +309,76 @@ const cornerStyle = computed(() => ({
   font-size: 14px;
   background: var(--wp-primary, #2563eb);
   color: #fff;
+}
+
+/* ── Home space — branded header + "Send us a message" card ── */
+.wp-home-header {
+  padding: 20px 16px 24px;
+}
+.wp-greeting {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.wp-tagline {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+.wp-home-body {
+  flex: 1;
+  padding: 12px;
+  background: #f7f7f9;
+  overflow: hidden;
+}
+.wp-card {
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-32px);
+}
+.wp-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.wp-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+.wp-card-reply {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+.wp-avatars {
+  display: flex;
+  flex: none;
+}
+.wp-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  margin-left: -8px;
+}
+.wp-avatar:first-child {
+  margin-left: 0;
+}
+.wp-card-cta {
+  margin-top: 12px;
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Motion only when the user hasn't asked to reduce it; end-state is plain CSS

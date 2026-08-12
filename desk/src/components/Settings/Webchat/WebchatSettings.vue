@@ -59,6 +59,7 @@
         <div class="flex items-center justify-between gap-3">
           <FormControl
             v-if="settings.data.length > 1"
+            :key="acctSelectNonce"
             type="select"
             :label="__('Account')"
             :options="accountOptions"
@@ -148,11 +149,17 @@
             <!-- Launcher position (segmented) -->
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm text-ink-gray-6">{{ __("Launcher position") }}</label>
-              <div class="inline-flex rounded-lg bg-surface-gray-2 p-0.5">
+              <div
+                class="inline-flex rounded-lg bg-surface-gray-2 p-0.5"
+                role="radiogroup"
+                :aria-label="__('Launcher position')"
+              >
                 <button
                   v-for="pos in ['Left', 'Right']"
                   :key="pos"
                   type="button"
+                  role="radio"
+                  :aria-checked="appearance.launcher_position === pos"
                   class="flex-1 rounded-md px-3 py-1 text-p-sm transition"
                   :class="
                     appearance.launcher_position === pos
@@ -213,20 +220,28 @@
                   {{ __("Ask visitors to identify themselves before chatting. A typed email/phone links or creates a Contact (marked unverified).") }}
                 </p>
               </div>
-              <label
+              <div
                 v-if="appearance.pre_chat !== 'Off'"
-                class="flex items-center gap-2 text-p-sm text-ink-gray-7"
+                class="flex items-center justify-between text-p-sm text-ink-gray-7"
               >
-                <input type="checkbox" v-model="appearance.pre_chat_collect_email" />
                 {{ __("Collect email") }}
-              </label>
-              <label
+                <Switch
+                  size="sm"
+                  :model-value="Boolean(appearance.pre_chat_collect_email)"
+                  @update:model-value="(v) => (appearance.pre_chat_collect_email = v)"
+                />
+              </div>
+              <div
                 v-if="appearance.pre_chat !== 'Off'"
-                class="flex items-center gap-2 text-p-sm text-ink-gray-7"
+                class="flex items-center justify-between text-p-sm text-ink-gray-7"
               >
-                <input type="checkbox" v-model="appearance.pre_chat_collect_phone" />
                 {{ __("Collect phone") }}
-              </label>
+                <Switch
+                  size="sm"
+                  :model-value="Boolean(appearance.pre_chat_collect_phone)"
+                  @update:model-value="(v) => (appearance.pre_chat_collect_phone = v)"
+                />
+              </div>
             </div>
 
             <!-- Home background color + gradient -->
@@ -274,11 +289,17 @@
             <!-- Header text color (segmented) -->
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm text-ink-gray-6">{{ __("Header text color") }}</label>
-              <div class="inline-flex rounded-lg bg-surface-gray-2 p-0.5">
+              <div
+                class="inline-flex rounded-lg bg-surface-gray-2 p-0.5"
+                role="radiogroup"
+                :aria-label="__('Header text color')"
+              >
                 <button
                   v-for="col in ['White', 'Black']"
                   :key="col"
                   type="button"
+                  role="radio"
+                  :aria-checked="appearance.header_text_color === col"
                   class="flex-1 rounded-md px-3 py-1 text-p-sm transition"
                   :class="
                     appearance.header_text_color === col
@@ -406,8 +427,9 @@
               <TabButtons
                 v-model="previewState"
                 :options="[
+                  { label: __('Home'), value: 'home' },
+                  { label: __('Chat'), value: 'chat' },
                   { label: __('Closed'), value: 'closed' },
-                  { label: __('Open'), value: 'open' },
                 ]"
               />
             </div>
@@ -417,16 +439,16 @@
 
         <!-- ══════════════════ INSTALL & SECURITY ══════════════════ -->
         <div v-show="activeTab === 'install'" class="flex flex-col gap-8">
-          <!-- Install -->
+          <!-- ── Step 1: Paste the embed snippet ── -->
           <section class="flex flex-col gap-4">
             <div>
               <h2 class="text-base-semibold text-ink-gray-8">
-                {{ __("1. Paste the snippet") }}
+                {{ __("1. Paste the embed snippet") }}
               </h2>
               <p class="text-p-sm text-ink-gray-6 mt-1">
                 {{
                   __(
-                    "Add this to the <head> of every page where the widget should appear. The widget only loads from the origins listed below."
+                    "Add this to the <head> of every page where the widget should appear. This alone enables anonymous / pre-chat chat. For verified identity (external logged-in portals), continue with steps 2–6."
                   )
                 }}
               </p>
@@ -443,26 +465,7 @@
               />
             </div>
 
-            <div>
-              <button
-                class="text-p-sm text-ink-blue-4 hover:underline"
-                @click="showIdentitySnippet = !showIdentitySnippet"
-              >
-                {{ showIdentitySnippet ? __("Hide") : __("Show") }}
-                {{ __("async identity (JS API) variant") }}
-              </button>
-              <div v-if="showIdentitySnippet" class="mt-3 relative">
-                <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap break-all">{{ identitySnippet }}</pre>
-                <Button
-                  :label="__('Copy')"
-                  variant="ghost"
-                  size="sm"
-                  class="absolute top-2 right-2"
-                  @click="copy(identitySnippet)"
-                />
-              </div>
-            </div>
-
+            <!-- Security: allowed origins -->
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm text-ink-gray-6">
                 {{ __("Allowed origins (one per line)") }}
@@ -491,22 +494,26 @@
 
           <Divider />
 
-          <!-- Security -->
+          <!-- Verified identity intro -->
+          <p class="text-p-sm text-ink-gray-6 -mb-2">
+            {{
+              __(
+                "Steps 2–6 add verified identity — skip them for anonymous / pre-chat flows (public site, CRM site). Enable it for an external logged-in portal so visitors are identified without a Frappe account. Verified identity links chats to the same customer Contact record as WhatsApp — email match first, then phone."
+              )
+            }}
+          </p>
+
+          <!-- ── Step 2: Generate the identity-verification secret ── -->
           <section class="flex flex-col gap-4">
             <div>
               <h2 class="text-base-semibold text-ink-gray-8">
-                {{ __("2–4. Verified identity (optional)") }}
+                {{ __("2. Generate your identity-verification secret") }}
               </h2>
               <p class="text-p-sm text-ink-gray-6 mt-1">
-                {{
-                  __(
-                    "Skip this block for anonymous / pre-chat flows (public site, CRM site). Enable it for an external logged-in portal so visitors are identified without a Frappe account. Verified identity links chats to the same customer Contact record as WhatsApp — email match first, then phone."
-                  )
-                }}
+                {{ __("A shared secret your server uses to sign each visitor's identity. Rotate it if it is ever compromised.") }}
               </p>
             </div>
 
-            <!-- Secret status -->
             <div class="flex items-center justify-between">
               <div class="flex flex-col gap-0.5">
                 <span class="text-base text-ink-gray-8">{{ __("Verify secret") }}</span>
@@ -550,8 +557,27 @@
                 {{ __("Dismiss") }}
               </button>
             </div>
+            <p class="text-p-xs text-ink-gray-5">
+              {{ __("Store this as your SECRET (an env var); the code samples in step 3 reference it.") }}
+            </p>
+          </section>
 
-            <!-- Hash code — collapsed by default -->
+          <Divider />
+
+          <!-- ── Step 3: Sign the identity server-side ── -->
+          <section class="flex flex-col gap-4">
+            <div>
+              <h2 class="text-base-semibold text-ink-gray-8">
+                {{ __("3. Sign the identity server-side") }}
+              </h2>
+              <p class="text-p-sm text-ink-gray-6 mt-1">
+                {{
+                  __(
+                    "Compute user_hash on your server from the signed-in user's details. Never compute the hash in the browser — it would leak your secret."
+                  )
+                }}
+              </p>
+            </div>
             <div>
               <button
                 class="text-p-sm text-ink-gray-9 hover:underline"
@@ -561,13 +587,6 @@
                 {{ __("server-side hash code (Python / Node)") }}
               </button>
               <div v-if="showHashCode" class="mt-3 flex flex-col gap-2">
-                <p class="text-p-sm text-ink-gray-6">
-                  {{
-                    __(
-                      "Return user_hash and exp to the page together — the widget must boot with the exact values you signed. Never compute the hash in the browser."
-                    )
-                  }}
-                </p>
                 <div class="relative">
                   <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ pythonSample }}</pre>
                   <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(pythonSample)" />
@@ -576,24 +595,90 @@
                   <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ nodeSample }}</pre>
                   <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(nodeSample)" />
                 </div>
-                <p class="text-p-sm text-ink-gray-6 mt-1">
-                  {{ __("Then boot the widget with the signed values (after your async login resolves; end users need no account on this site):") }}
-                </p>
-                <div class="relative">
-                  <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ bootSample }}</pre>
-                  <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(bootSample)" />
-                </div>
               </div>
             </div>
+          </section>
 
-            <!-- Enforce -->
-            <div class="flex items-center justify-between py-3 border-t border-outline-gray-1">
+          <Divider />
+
+          <!-- ── Step 4: Boot the widget with the signed values ── -->
+          <section class="flex flex-col gap-4">
+            <div>
+              <h2 class="text-base-semibold text-ink-gray-8">
+                {{ __("4. Boot the widget with the signed values") }}
+              </h2>
+              <p class="text-p-sm text-ink-gray-6 mt-1">
+                {{
+                  __(
+                    "After your async login resolves, boot the widget with the exact user_hash and exp your server signed (end users need no account on this site)."
+                  )
+                }}
+              </p>
+            </div>
+            <div class="relative">
+              <pre class="rounded bg-surface-gray-2 p-4 text-p-sm font-mono overflow-x-auto whitespace-pre-wrap">{{ bootSample }}</pre>
+              <Button :label="__('Copy')" variant="ghost" size="sm" class="absolute top-2 right-2" @click="copy(bootSample)" />
+            </div>
+          </section>
+
+          <Divider />
+
+          <!-- ── Step 5: Verify your integration ── -->
+          <section class="flex flex-col gap-4">
+            <div>
+              <h2 class="text-base-semibold text-ink-gray-8">
+                {{ __("5. Verify your integration") }}
+              </h2>
+              <p class="text-p-sm text-ink-gray-6 mt-1">
+                {{
+                  __(
+                    "Paste a user_id and the user_hash your server computed (plus any email / phone / exp you signed) to confirm the HMAC matches before turning on enforcement."
+                  )
+                }}
+              </p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <FormControl :label="__('user_id')" type="text" v-model="verifyForm.user_id" placeholder="123" />
+              <FormControl :label="__('user_hash')" type="text" v-model="verifyForm.user_hash" placeholder="abc123…" />
+              <FormControl :label="__('email (optional)')" type="text" v-model="verifyForm.user_email" placeholder="user@example.com" />
+              <FormControl :label="__('phone (optional)')" type="text" v-model="verifyForm.user_phone" placeholder="+201001234567" />
+              <FormControl :label="__('exp (optional)')" type="text" v-model="verifyForm.exp" placeholder="1700000000" />
+            </div>
+            <div class="flex items-center gap-3">
+              <Button
+                :label="__('Verify')"
+                variant="subtle"
+                :loading="verifying"
+                :disabled="!selectedAccount?.secret_set"
+                @click="runVerify"
+              />
+              <span v-if="!selectedAccount?.secret_set" class="text-p-xs text-ink-gray-5">
+                {{ __("Generate a secret first (step 2).") }}
+              </span>
+              <span
+                v-else-if="verifyResult"
+                class="text-p-sm font-medium"
+                :class="verifyResult.valid ? 'text-ink-green-6' : 'text-ink-red-6'"
+              >
+                {{ verifyResult.valid ? __("✓ Valid — HMAC matches, not expired") : "✗ " + verifyReasonText(verifyResult.reason) }}
+              </span>
+            </div>
+          </section>
+
+          <Divider />
+
+          <!-- ── Step 6: Turn on enforcement ── -->
+          <section class="flex flex-col gap-4">
+            <h2 class="text-base-semibold text-ink-gray-8">
+              {{ __("6. Turn on enforcement") }}
+            </h2>
+            <div class="flex items-center justify-between py-3">
               <div class="flex flex-col gap-0.5">
                 <span class="text-base text-ink-gray-8">{{ __("Enforce verified identity") }}</span>
                 <span class="text-p-sm text-ink-gray-6">
                   {{
                     __(
-                      "Reject any bootstrap that presents a user_id or user_hash but fails HMAC verification. Anonymous visitors are unaffected. Enable only after verifying that your server-side hash computation works."
+                      "Reject any bootstrap that presents a user_id or user_hash but fails HMAC verification. Anonymous visitors are unaffected. Enable only after step 5 confirms your server-side hash works."
                     )
                   }}
                 </span>
@@ -703,7 +788,20 @@ const WEBCHAT_API = "axon_helpdesk.api_webchat";
 
 // ── Tabs / preview UI state (presentational only) ──────────────────────────────
 const activeTab = ref("appearance");
-const previewState = ref<"closed" | "open">("open");
+// Guard leaving Appearance with unsaved edits. TabButtons is a v-model with no
+// interception point, so revert here; suppress the re-entrant revert with a flag.
+let revertingTab = false;
+watch(activeTab, (to, from) => {
+  if (revertingTab) {
+    revertingTab = false;
+    return;
+  }
+  if (from === "appearance" && isDirty.value && !window.confirm(__("Discard unsaved changes?"))) {
+    revertingTab = true;
+    activeTab.value = from;
+  }
+});
+const previewState = ref<"closed" | "chat" | "home">("home");
 const showHashCode = ref(false);
 const swatches = ["#2563eb", "#16a34a", "#db2777", "#ea580c", "#7c3aed", "#0891b2"];
 
@@ -737,10 +835,21 @@ watch(
   }
 );
 
+// Bumped to force the account <select> to remount at the correct model-value when a
+// switch is cancelled (a native controlled select keeps the rejected choice otherwise).
+const acctSelectNonce = ref(0);
+
 function selectAccount(name: string) {
+  // Guard unsaved appearance edits. On cancel, leave selectedName untouched and remount
+  // the select so it snaps back to the still-selected account.
+  if (isDirty.value && !window.confirm(__("Discard unsaved changes?"))) {
+    acctSelectNonce.value++;
+    return;
+  }
   selectedName.value = name;
   revealedSecret.value = null;
-  syncAppearanceFromAccount();
+  verifyResult.value = null;   // don't carry a "Valid" result across accounts
+  // syncAppearanceFromAccount runs via the selectedAccount watcher.
 }
 
 // ── Origins ───────────────────────────────────────────────────────────────────
@@ -773,32 +882,11 @@ async function saveOrigins() {
 }
 
 // ── Snippets ──────────────────────────────────────────────────────────────────
-const showIdentitySnippet = ref(false);
-
 const siteOrigin = window.location.origin;
 
 const basicSnippet = computed(() =>
   selectedAccount.value
     ? `<script src="${siteOrigin}/webchat/widget.js" data-widget-key="${selectedAccount.value.widget_key}"><\/script>`
-    : ""
-);
-
-const identitySnippet = computed(() =>
-  selectedAccount.value
-    ? `<script>window.axw = window.axw || function(){(axw.q=axw.q||[]).push([].slice.call(arguments))};<\/script>
-<script src="${siteOrigin}/webchat/widget.js" data-widget-key="${selectedAccount.value.widget_key}"><\/script>
-<script>
-  // Call after your async login resolves. user_hash AND exp come from your
-  // server together — exp must be the exact value your server signed.
-  axw('boot', {
-    user_id: session.user_id,
-    user_hash: session.chat_hash,  // HMAC-SHA256 computed server-side
-    email: session.email,
-    phone: session.phone,          // optional
-    name: session.display_name,
-    exp: session.chat_hash_exp,    // optional; signed server-side with the hash
-  });
-<\/script>`
     : ""
 );
 
@@ -810,14 +898,22 @@ const nodeSample = `const crypto = require('crypto');
 const exp = String(Math.floor(Date.now() / 1000) + 3600); // or '' to skip expiry
 const user_hash = crypto.createHmac('sha256', SECRET).update([user_id, email || '', phone || '', exp].join('\\n')).digest('hex');`;
 
-const bootSample = `axw('boot', {
+// The command-queue shim MUST come before the loader tag (widget.js drains axw.q on
+// load). Add it once in <head>, then call boot after your async login resolves.
+const bootSample = `<!-- In your page's <head>, BEFORE the loader <script> from step 1: -->
+<script>window.axw=window.axw||function(){(axw.q=axw.q||[]).push([].slice.call(arguments))}<\/script>
+
+<!-- Then, once your async login resolves, boot with the SIGNED values from your server: -->
+<script>
+axw('boot', {
   user_id: '123',
-  user_hash: server.user_hash,  // from your server
+  user_hash: server.user_hash,  // computed on YOUR server — never in the browser
   email: 'user@example.com',
   phone: '+201001234567',       // optional
   name: 'Jane Smith',
   exp: server.exp,              // the exact exp your server signed (omit if unsigned)
-});`;
+});
+<\/script>`;
 
 async function copy(text: string) {
   await copyToClipboard(text);
@@ -872,6 +968,40 @@ async function toggleEnforce(val: boolean) {
   } catch (e: any) {
     selectedAccount.value.enforce = prev; // revert
     toast.error(e?.messages?.[0] || __("Failed to update enforcement."));
+  }
+}
+
+// ── Verify integration (step 5) ─────────────────────────────────────────────────
+const verifyForm = ref({ user_id: "", user_hash: "", user_email: "", user_phone: "", exp: "" });
+const verifying = ref(false);
+const verifyResult = ref<{ valid: boolean; reason: string } | null>(null);
+
+const VERIFY_REASONS: Record<string, string> = {
+  hash_mismatch: __("Hash mismatch — user_hash does not match what the secret signs."),
+  expired: __("Expired — the exp timestamp is in the past."),
+  no_secret: __("No secret set — generate one in step 2."),
+};
+function verifyReasonText(reason: string) {
+  return VERIFY_REASONS[reason] || reason;
+}
+
+async function runVerify() {
+  if (!selectedAccount.value) return;
+  verifying.value = true;
+  verifyResult.value = null;
+  try {
+    verifyResult.value = await call(`${WEBCHAT_API}.verify_identity_hash`, {
+      account: selectedAccount.value.name,
+      user_id: verifyForm.value.user_id,
+      user_hash: verifyForm.value.user_hash,
+      user_email: verifyForm.value.user_email,
+      user_phone: verifyForm.value.user_phone,
+      exp: verifyForm.value.exp,
+    });
+  } catch (e: any) {
+    toast.error(e?.messages?.[0] || __("Verification failed."));
+  } finally {
+    verifying.value = false;
   }
 }
 
