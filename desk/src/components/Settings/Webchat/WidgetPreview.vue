@@ -54,7 +54,7 @@
       </div>
     </div>
 
-    <!-- Home: branded header + "Send us a message" card, mirrors the widget's Home space -->
+    <!-- Home: branded header + cards hub, mirrors the widget's Home space (no tab bar) -->
     <div
       class="wp-panel"
       :class="isLeft ? 'wp-left' : 'wp-right'"
@@ -67,23 +67,24 @@
         <div v-if="appearance.tagline" class="wp-tagline">{{ appearance.tagline }}</div>
       </div>
       <div class="wp-home-body">
+        <!-- "Send us a message" card: avatar-row on top, then title + reply sub -->
         <div class="wp-card">
-          <div class="wp-card-top">
-            <div class="wp-card-text">
-              <div class="wp-card-title">Send us a message</div>
-              <div class="wp-card-reply">{{ replyText }}</div>
-            </div>
-            <div v-if="avatars.length" class="wp-avatars">
-              <img
-                v-for="(a, i) in avatars"
-                :key="i"
-                :src="a"
-                class="wp-avatar"
-                alt=""
-              />
-            </div>
+          <div v-if="avatars.length" class="wp-avatar-row">
+            <img
+              v-for="(a, i) in avatars"
+              :key="i"
+              :src="a"
+              class="wp-avatar"
+              alt=""
+            />
           </div>
-          <div class="wp-card-cta" :style="{ background: primaryColor }">Start a conversation</div>
+          <div class="wp-card-title">Send us a message</div>
+          <div class="wp-card-reply">{{ replyText }}</div>
+        </div>
+        <!-- "See all conversations" static row card — conveys hub structure without live data -->
+        <div class="wp-card wp-card-row">
+          <div class="wp-card-title">See all conversations</div>
+          <svg class="wp-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
         </div>
       </div>
     </div>
@@ -123,7 +124,7 @@ const headerStyle = computed(() => {
   const base = props.appearance.home_background_color || primaryColor.value;
   const grad = props.appearance.home_background_gradient_color;
   return {
-    background: grad ? `linear-gradient(135deg, ${base}, ${grad})` : base,
+    background: grad ? `linear-gradient(160deg, ${base}, ${grad})` : base,
     color: props.appearance.header_text_color === "Black" ? "#111" : "#fff",
   };
 });
@@ -331,20 +332,21 @@ const cornerStyle = computed(() => ({
   padding: 12px;
   background: #f7f7f9;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .wp-card {
   background: #fff;
   border: 1px solid #e5e5ea;
   border-radius: 12px;
   padding: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transform: translateY(-32px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
-.wp-card-top {
+.wp-card-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
 }
 .wp-card-title {
   font-size: 14px;
@@ -356,9 +358,10 @@ const cornerStyle = computed(() => ({
   color: #6b7280;
   margin-top: 2px;
 }
-.wp-avatars {
+/* avatar-row: avatars stack above the card title, matching .avatar-row in webchat.css */
+.wp-avatar-row {
   display: flex;
-  flex: none;
+  margin-bottom: 8px;
 }
 .wp-avatar {
   width: 28px;
@@ -366,19 +369,16 @@ const cornerStyle = computed(() => ({
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #fff;
-  margin-left: -8px;
+  margin-right: -8px;
 }
-.wp-avatar:first-child {
-  margin-left: 0;
+.wp-avatar:last-child {
+  margin-right: 0;
 }
-.wp-card-cta {
-  margin-top: 12px;
-  border-radius: 8px;
-  padding: 8px;
-  text-align: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
+.wp-chevron {
+  width: 14px;
+  height: 14px;
+  color: #9ca3af;
+  flex: none;
 }
 
 /* Motion only when the user hasn't asked to reduce it; end-state is plain CSS
