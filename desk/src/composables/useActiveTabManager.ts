@@ -56,7 +56,9 @@ export function useActiveTabManager(tabs) {
     }
 
     tabIndex.value = 0;
-    router.replace({ path: route.path, query: route.query });
+    // ponytail: keep an unresolved hash — channel tabs load async and the tabs
+    // watcher resolves it on the next update (immediate:true runs before they exist).
+    if (!_activeTab) router.replace({ path: route.path, query: route.query });
   };
 
   // Handle when page is navigated
@@ -74,7 +76,8 @@ export function useActiveTabManager(tabs) {
     }
   );
 
-  // Handle when tabs array is updated
+  // Handle when tabs array is updated. `immediate` also applies the URL hash
+  // when the panel remounts on soft navigation between tickets.
   watch(
     [tabs, isTelephonyLoading],
     ([tabsValue, isLoading]) => {
@@ -83,7 +86,7 @@ export function useActiveTabManager(tabs) {
         setActiveTab();
       }
     },
-    { deep: true, flush: "post" }
+    { deep: true, flush: "post", immediate: true }
   );
 
   return { tabIndex, changeTabTo };

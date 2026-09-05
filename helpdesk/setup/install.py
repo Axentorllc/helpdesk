@@ -4,7 +4,7 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.permissions import add_permission, update_permission_property
 
-from helpdesk.consts import DEFAULT_ARTICLE_CATEGORY
+from helpdesk.consts import DEFAULT_ARTICLE_CATEGORY, DEFAULT_SLA
 from helpdesk.setup.default_views import add_default_views
 
 from .default_template import create_default_template
@@ -64,11 +64,11 @@ def add_default_categories_and_articles():
 def add_default_sla():
     add_default_ticket_priorities()
     add_default_holiday_list()
-    if frappe.db.exists("HD Service Level Agreement", "Default"):
+    if frappe.db.exists("HD Service Level Agreement", DEFAULT_SLA):
         return
     sla_doc = frappe.new_doc("HD Service Level Agreement")
 
-    sla_doc.service_level = "Default"
+    sla_doc.service_level = DEFAULT_SLA
     sla_doc.document_type = "HD Ticket"
     sla_doc.default_sla = 1
     sla_doc.enabled = 1
@@ -224,10 +224,27 @@ def setup_customer_role(fresh_install=True):
         role_doc.save()
 
     if fresh_install:
-        portal_settings = frappe.get_single("Portal Settings")
-        portal_settings.default_role = "HD Customer"
-        portal_settings.default_portal_home = "/helpdesk"
-        portal_settings.save()
+        set_portal_defaults(overwrite=True)
+
+
+def set_portal_defaults(overwrite=False):
+    """Point the portal at helpdesk. Installing claims the settings outright;
+    the upgrade patch only fills what a site left empty.
+
+    Writes straight into the Single rather than saving the document. A save
+    also validates the portal menu rows, and a row left behind by a deleted
+    doctype fails that validation and takes the whole migration down.
+    """
+    defaults = {"default_role": "HD Customer", "default_portal_home": "/helpdesk"}
+    if overwrite:
+        to_set = defaults
+    else:
+        current = frappe.db.get_singles_dict("Portal Settings")
+        to_set = {
+            field: value for field, value in defaults.items() if not current.get(field)
+        }
+    if to_set:
+        frappe.db.set_single_value("Portal Settings", to_set)
 
 
 def add_website_settings_permission():

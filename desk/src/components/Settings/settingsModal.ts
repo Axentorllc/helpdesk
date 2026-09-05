@@ -30,7 +30,7 @@ import { Avatar } from "frappe-ui";
 import { useAuthStore } from "@/stores/auth";
 import General from "./General/General.vue";
 import SettingsGear from "~icons/lucide/settings";
-import SavedReplyIcon from "../icons/SavedReplyIcon.vue";
+import ZapIcon from "~icons/lucide/zap";
 import ProfilePage from "./Profile/ProfilePage.vue";
 import Preferences from "./Preferences/Preferences.vue";
 import TeamAssignment from "./TeamAssignment/TeamAssignment.vue";
@@ -149,7 +149,7 @@ export const tabs = computed(() => {
         },
         {
           label: __("Saved Replies"),
-          icon: markRaw(SavedReplyIcon),
+          icon: markRaw(ZapIcon),
           component: markRaw(SavedReplies),
         },
         // Extension sections contributed via helpdesk_settings_sections hook.

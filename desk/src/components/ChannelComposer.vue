@@ -198,6 +198,7 @@
 
 <script setup lang="ts">
 import { __ } from "@/translation";
+import { RenderedSavedReply } from "@/types";
 import { AttachmentItem, SavedRepliesSelectorModal } from "@/components";
 import { Autocomplete } from "@/components";
 import { removeAttachmentFromServer, uploadFunction } from "@/utils";
@@ -277,12 +278,13 @@ async function wrapSelection(marker: string) {
 // ── Saved replies ─────────────────────────────────────────────────────────────
 // HTML → wire-format conversion is dispatched to the channel's adapter
 // (helpdesk.api.channels.format_html); the fork stays channel-agnostic.
-async function applySavedReply(html: string) {
+async function applySavedReply(reply: RenderedSavedReply) {
+  // v1.30 selector emits {title, message, actions}; actions are email-only (not applied here).
   let converted = "";
   try {
     const res = await call("helpdesk.api.channels.format_html", {
       channel: props.channel,
-      html,
+      html: reply.message,
     });
     converted = res?.text ?? "";
   } catch {
